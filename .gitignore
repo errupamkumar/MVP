@@ -1,0 +1,18 @@
+# Backend
+backend/target/
+*.class
+*.log
+
+# Mobile (see mobile/.gitignore for Expo specifics)
+mobile/node_modules/
+mobile/dist/
+mobile/dist-android/
+mobile/.expo/
+mobile/.env
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

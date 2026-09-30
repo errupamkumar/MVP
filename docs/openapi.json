@@ -1,0 +1,3840 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plant Ride API",
+    "description": "In-plant cab booking, pooling, fleet compliance and cost-centre billing for LHS.\n\n1. Call **POST /api/auth/login** with a demo account (password `Plant@123`):\n   `LHS-40218` (rider), `DRV-2281` (driver), `admin` (desk + admin), `desk` (desk).\n2. Click **Authorize** and paste the returned `token`.\n",
+    "contact": {
+      "name": "SRM ECO TECH",
+      "email": "info@srmecotech.com"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/admin/routes/{id}/stops": {
+      "put": {
+        "tags": [
+          "6. Admin"
+        ],
+        "summary": "Replace the stop sequence (refused while the route has live rides)",
+        "operationId": "resequence",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResequenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/routes/{id}/rules": {
+      "put": {
+        "tags": [
+          "6. Admin"
+        ],
+        "summary": "Change the occupancy cap, wait, detour, speed limit or frequency (audited, no release)",
+        "operationId": "updateRules",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRouteRulesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/sos": {
+      "post": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "SOS: alerts the desk and plant security with the cab's live location",
+        "operationId": "sos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiderSosRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SosResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/ride-options": {
+      "post": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Shuttle, shared and exclusive options with ETA and free seats",
+        "operationId": "rideOptions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RideOptionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideOptionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/bookings": {
+      "get": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "My trips: scope = upcoming | past | cancelled",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "upcoming"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Book a ride. Send an Idempotency-Key so a retried tap never books twice",
+        "operationId": "create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated UUID, one per booking attempt",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/bookings/{id}/rating": {
+      "post": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Rate a completed ride (feeds the vendor SLA report)",
+        "operationId": "rate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Cancel any time before boarding",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "7. Notifications"
+        ],
+        "summary": "Mark all my notifications read",
+        "operationId": "readAll",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/trips/{tripId}/no-show": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Mark a rider as a no-show after the configured wait",
+        "operationId": "noShow",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoShowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverQueueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/trips/{tripId}/board": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Board a rider with their 4-digit OTP",
+        "operationId": "board",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverQueueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/trips/{tripId}/arrive": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Arrived at the next stop: drops complete, waiting riders are told the cab is here",
+        "operationId": "arrive",
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArriveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverQueueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/sos": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "SOS: alerts the transport desk and plant security with the cab's location",
+        "operationId": "sos_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SosRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/location": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "GPS ping from the driver app: live position, overspeed check, geofence arrival",
+        "operationId": "location",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationPingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationAckDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/issues": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Report a breakdown, accident, delay, fuel entry or other issue",
+        "operationId": "reportIssue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportIssueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/duty/start": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Sign on: vehicle check, odometer, compliance gate",
+        "operationId": "startDuty",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartDutyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DutyDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/duty/end": {
+      "post": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Sign off: closing odometer, fuel, GPS-vs-odometer check",
+        "operationId": "endDuty",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndDutyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DutySummaryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/vehicles/{id}/status": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Take a vehicle off-road (its riders are re-matched) or put it back on the road",
+        "operationId": "vehicleStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/bookings/{id}/reject": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Reject an exclusive ride",
+        "operationId": "reject",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskActionResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Cancel a booking on the rider's behalf",
+        "operationId": "cancel_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskActionResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/bookings/{id}/assign": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Override: put a booking on a specific cab (hard rules and the cap still apply)",
+        "operationId": "assign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskActionResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/bookings/{id}/approve": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Approve an exclusive ride",
+        "operationId": "approve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskActionResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/alerts/{id}/resolve": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Resolve an alert",
+        "operationId": "resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/alerts/{id}/ack": {
+      "post": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Acknowledge an alert",
+        "operationId": "acknowledge",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "1. Auth"
+        ],
+        "summary": "Sign in with P. No. (rider), driver ID (driver) or username (desk/admin)",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/admin/demo/reset": {
+      "post": {
+        "tags": [
+          "6. Admin"
+        ],
+        "summary": "Reload the demo seed data (only when plantride.demo.reset-enabled=true)",
+        "operationId": "resetDemo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stops": {
+      "get": {
+        "tags": [
+          "2. Master data"
+        ],
+        "summary": "All stops in service, alphabetically",
+        "operationId": "stops",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StopDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes": {
+      "get": {
+        "tags": [
+          "2. Master data"
+        ],
+        "summary": "Active routes with their stop sequence and rules",
+        "operationId": "routes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/{id}": {
+      "get": {
+        "tags": [
+          "2. Master data"
+        ],
+        "summary": "One route with its stop sequence and rules",
+        "operationId": "route",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/profile": {
+      "get": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Employee details used to pre-fill the booking (from HRMS)",
+        "operationId": "profile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeProfileDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/home": {
+      "get": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Home screen: live booking, saved places, next shuttle, unread count",
+        "operationId": "home",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderHomeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/destinations": {
+      "get": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "Stops reachable from a pickup stop, with the fastest route to each",
+        "operationId": "destinations",
+        "parameters": [
+          {
+            "name": "fromStopId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DestinationDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rider/bookings/{id}": {
+      "get": {
+        "tags": [
+          "3. Rider"
+        ],
+        "summary": "One booking with vehicle, driver contact, OTP, live progress and charge",
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/track/{token}": {
+      "get": {
+        "tags": [
+          "8. Public tracking"
+        ],
+        "summary": "Live progress for a shared tracking link (no login, no personal data)",
+        "operationId": "track",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingDto"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "7. Notifications"
+        ],
+        "summary": "My notifications, newest first",
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/vehicles": {
+      "get": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Vehicles this driver may sign on with, and why any are blocked",
+        "operationId": "vehicles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleOptionDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/queue": {
+      "get": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "The sequenced trip queue (trip = null when there is no trip)",
+        "operationId": "queue",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverQueueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/profile": {
+      "get": {
+        "tags": [
+          "4. Driver"
+        ],
+        "summary": "Driver profile, document validity and current duty",
+        "operationId": "profile_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverProfileDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/queue": {
+      "get": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Bookings waiting for a cab or for approval",
+        "operationId": "queue_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueueItemDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/bookings/{id}/candidates": {
+      "get": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Why each on-duty cab can or cannot take this booking (the engine's audit trail)",
+        "operationId": "candidates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CandidateDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/board": {
+      "get": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Live board: KPIs, every vehicle's state, open alerts and the waiting queue",
+        "operationId": "board_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveBoardDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/desk/alerts": {
+      "get": {
+        "tags": [
+          "5. Transport desk"
+        ],
+        "summary": "Open and acknowledged alerts, most severe first",
+        "operationId": "alerts",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlertDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/billing/summary": {
+      "get": {
+        "tags": [
+          "6. Billing (admin)"
+        ],
+        "summary": "Charges by cost centre, vendor bill vs GPS, and compliance watch for a month",
+        "operationId": "summary",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Billing month yyyy-MM; defaults to the current month",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingSummaryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/billing/export": {
+      "get": {
+        "tags": [
+          "6. Billing (admin)"
+        ],
+        "summary": "Ride-level CSV for the month-end ERP (SAP) import",
+        "operationId": "export",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "1. Auth"
+        ],
+        "summary": "The signed-in user",
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/routes": {
+      "get": {
+        "tags": [
+          "6. Admin"
+        ],
+        "summary": "All routes with stop sequence, geofences, leg times and rules",
+        "operationId": "routes_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/compliance": {
+      "get": {
+        "tags": [
+          "6. Admin"
+        ],
+        "summary": "Documents expiring within the alert window or already expired",
+        "operationId": "compliance",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ComplianceItemDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit": {
+      "get": {
+        "tags": [
+          "6. Admin"
+        ],
+        "summary": "Who booked, changed, approved and overrode what",
+        "operationId": "audit",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResequenceRequest": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteStopInput"
+            },
+            "maxItems": 30,
+            "minItems": 2
+          }
+        },
+        "required": [
+          "stops",
+          "version"
+        ]
+      },
+      "RouteStopInput": {
+        "type": "object",
+        "properties": {
+          "stopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "legMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 120,
+            "minimum": 0
+          },
+          "legKm": {
+            "type": "number",
+            "maximum": 50.0,
+            "minimum": 0.0
+          }
+        },
+        "required": [
+          "legKm",
+          "legMinutes",
+          "stopId"
+        ]
+      },
+      "RouteDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "routeType": {
+            "type": "string",
+            "enum": [
+              "LOOP",
+              "ONE_WAY"
+            ]
+          },
+          "serviceNote": {
+            "type": "string"
+          },
+          "frequencyMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxPassengers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxWaitMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxDetourMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "speedLimitKmh": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalKm": {
+            "type": "number"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteStopDto"
+            }
+          }
+        }
+      },
+      "RouteStopDto": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stopCode": {
+            "type": "string"
+          },
+          "stopName": {
+            "type": "string"
+          },
+          "legMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "legKm": {
+            "type": "number"
+          },
+          "geofenceM": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "UpdateRouteRulesRequest": {
+        "type": "object",
+        "properties": {
+          "maxPassengers": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 12,
+            "minimum": 1
+          },
+          "maxWaitMin": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "maxDetourMin": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 60,
+            "minimum": 0
+          },
+          "speedLimitKmh": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 80,
+            "minimum": 5
+          },
+          "frequencyMin": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 240,
+            "minimum": 5
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "maxDetourMin",
+          "maxPassengers",
+          "maxWaitMin",
+          "speedLimitKmh",
+          "version"
+        ]
+      },
+      "RiderSosRequest": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 0
+          }
+        }
+      },
+      "SosResultDto": {
+        "type": "object",
+        "properties": {
+          "alertId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RideOptionsRequest": {
+        "type": "object",
+        "properties": {
+          "fromStopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toStopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 12,
+            "minimum": 1
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "fromStopId",
+          "toStopId"
+        ]
+      },
+      "RideOptionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "bookable": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "etaMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatsTaken": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatsFree": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "RideOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "$ref": "#/components/schemas/RouteRef"
+          },
+          "from": {
+            "$ref": "#/components/schemas/StopRef"
+          },
+          "to": {
+            "$ref": "#/components/schemas/StopRef"
+          },
+          "rideKm": {
+            "type": "number"
+          },
+          "rideMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "occupancyCap": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "costCentreCode": {
+            "type": "string"
+          },
+          "costCentreName": {
+            "type": "string"
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RideOptionDto"
+            }
+          }
+        }
+      },
+      "RouteRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "StopRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateBookingRequest": {
+        "type": "object",
+        "properties": {
+          "fromStopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toStopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rideType": {
+            "type": "string",
+            "enum": [
+              "SHARED",
+              "EXCLUSIVE"
+            ]
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 12,
+            "minimum": 1
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "riderName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "riderPhone": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\+?[0-9 ()-]{7,20}$"
+          },
+          "riderEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "forGuest": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fromStopId",
+          "rideType",
+          "riderName",
+          "riderPhone",
+          "seats",
+          "toStopId"
+        ]
+      },
+      "BookingDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bookingCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "PENDING_APPROVAL",
+              "REQUESTED",
+              "ASSIGNED",
+              "ONBOARD",
+              "COMPLETED",
+              "CANCELLED",
+              "NO_SHOW",
+              "REJECTED"
+            ]
+          },
+          "rideType": {
+            "type": "string",
+            "enum": [
+              "SHARED",
+              "EXCLUSIVE"
+            ]
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "forGuest": {
+            "type": "boolean"
+          },
+          "riderName": {
+            "type": "string"
+          },
+          "riderPhone": {
+            "type": "string"
+          },
+          "riderEmail": {
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/components/schemas/RouteRef"
+          },
+          "fromStop": {
+            "$ref": "#/components/schemas/StopRef"
+          },
+          "toStop": {
+            "$ref": "#/components/schemas/StopRef"
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "assignedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "boardedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "droppedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cancelReason": {
+            "type": "string"
+          },
+          "otp": {
+            "type": "string"
+          },
+          "trackingToken": {
+            "type": "string"
+          },
+          "trackingUrl": {
+            "type": "string"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleRef"
+          },
+          "driver": {
+            "$ref": "#/components/schemas/DriverContactDto"
+          },
+          "tripCode": {
+            "type": "string"
+          },
+          "promisedEtaMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "promisedPickupAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/RideProgressDto"
+          },
+          "costCentreCode": {
+            "type": "string"
+          },
+          "costCentreName": {
+            "type": "string"
+          },
+          "rideKm": {
+            "type": "number"
+          },
+          "rideMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distanceKm": {
+            "type": "number"
+          },
+          "costAmount": {
+            "type": "number"
+          },
+          "matchNote": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ratingTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ratingNote": {
+            "type": "string"
+          },
+          "canCancel": {
+            "type": "boolean"
+          },
+          "canRate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DriverContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "ProgressStopDto": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stopName": {
+            "type": "string"
+          },
+          "pickup": {
+            "type": "boolean"
+          },
+          "drop": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "RideProgressDto": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "stageLabel": {
+            "type": "string"
+          },
+          "etaToPickupMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "etaToDropMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vehicleAt": {
+            "type": "string"
+          },
+          "coRiders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatsTaken": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressStopDto"
+            }
+          }
+        }
+      },
+      "VehicleRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "registrationNo": {
+            "type": "string"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SHUTTLE"
+            ]
+          },
+          "seatCapacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RateBookingRequest": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ON_TIME",
+                "CLEAN_CAB",
+                "SAFE_DRIVING",
+                "LONG_WAIT",
+                "HARD_TO_FIND"
+              ]
+            },
+            "maxItems": 5,
+            "minItems": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "CancelBookingRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          }
+        }
+      },
+      "NoShowRequest": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "bookingId"
+        ]
+      },
+      "DriverQueueResponse": {
+        "type": "object",
+        "properties": {
+          "trip": {
+            "$ref": "#/components/schemas/TripQueueDto"
+          },
+          "notice": {
+            "type": "string"
+          }
+        }
+      },
+      "QueueRiderDto": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bookingCode": {
+            "type": "string"
+          },
+          "riderName": {
+            "type": "string"
+          },
+          "personnelNo": {
+            "type": "string"
+          },
+          "riderPhone": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "fromStopName": {
+            "type": "string"
+          },
+          "toStopName": {
+            "type": "string"
+          },
+          "noShowAllowedInSeconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "otpLocked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "QueueStopDto": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stopName": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "etaMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "pickups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueRiderDto"
+            }
+          },
+          "drops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueRiderDto"
+            }
+          }
+        }
+      },
+      "TripQueueDto": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tripCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "route": {
+            "$ref": "#/components/schemas/RouteRef"
+          },
+          "exclusive": {
+            "type": "boolean"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "onBoard": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatsLeft": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currentSeq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currentStopName": {
+            "type": "string"
+          },
+          "nextStop": {
+            "$ref": "#/components/schemas/QueueStopDto"
+          },
+          "canArriveNext": {
+            "type": "boolean"
+          },
+          "arriveBlockedReason": {
+            "type": "string"
+          },
+          "speedLimitKmh": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueStopDto"
+            }
+          }
+        }
+      },
+      "BoardRequest": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "otp": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\d{4}"
+          }
+        },
+        "required": [
+          "bookingId",
+          "otp"
+        ]
+      },
+      "ArriveRequest": {
+        "type": "object",
+        "properties": {
+          "stopSeq": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "stopSeq"
+        ]
+      },
+      "SosRequest": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 0
+          }
+        }
+      },
+      "IssueResultDto": {
+        "type": "object",
+        "properties": {
+          "alertId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "ridersRematched": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LocationPingRequest": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "maximum": 90.0,
+            "minimum": -90.0
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "maximum": 180.0,
+            "minimum": -180.0
+          },
+          "speedKmh": {
+            "type": "number",
+            "format": "double",
+            "maximum": 250.0
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ]
+      },
+      "LocationAckDto": {
+        "type": "object",
+        "properties": {
+          "overspeed": {
+            "type": "boolean"
+          },
+          "speedLimitKmh": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "autoArrivedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportIssueRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "BREAKDOWN",
+              "ACCIDENT",
+              "DELAY",
+              "FUEL",
+              "OTHER"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 0
+          },
+          "litres": {
+            "type": "number",
+            "maximum": 300.0,
+            "minimum": 0.0
+          }
+        },
+        "required": [
+          "description",
+          "type"
+        ]
+      },
+      "StartDutyRequest": {
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "startOdometer": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 9999999
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "checklist",
+          "startOdometer",
+          "vehicleId"
+        ]
+      },
+      "DutyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "CLOSED"
+            ]
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleRef"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "minutesOnDuty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxDutyMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startOdometer": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tripsCompleted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ridersCarried": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distanceKm": {
+            "type": "number"
+          }
+        }
+      },
+      "EndDutyRequest": {
+        "type": "object",
+        "properties": {
+          "endOdometer": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 9999999
+          },
+          "fuelLitres": {
+            "type": "number",
+            "maximum": 300.0,
+            "minimum": 0.0
+          }
+        },
+        "required": [
+          "endOdometer"
+        ]
+      },
+      "DutySummaryDto": {
+        "type": "object",
+        "properties": {
+          "dutyId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dutyMinutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tripsCompleted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ridersCarried": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gpsKm": {
+            "type": "number"
+          },
+          "odometerKm": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "odometerCheck": {
+            "type": "string"
+          },
+          "fuelLitres": {
+            "type": "number"
+          }
+        }
+      },
+      "VehicleStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "OFF_ROAD"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ReasonRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "DeskActionResultDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "booking": {
+            "$ref": "#/components/schemas/QueueItemDto"
+          }
+        }
+      },
+      "QueueItemDto": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bookingCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "PENDING_APPROVAL",
+              "REQUESTED",
+              "ASSIGNED",
+              "ONBOARD",
+              "COMPLETED",
+              "CANCELLED",
+              "NO_SHOW",
+              "REJECTED"
+            ]
+          },
+          "rideType": {
+            "type": "string",
+            "enum": [
+              "SHARED",
+              "EXCLUSIVE"
+            ]
+          },
+          "riderName": {
+            "type": "string"
+          },
+          "personnelNo": {
+            "type": "string"
+          },
+          "costCentreCode": {
+            "type": "string"
+          },
+          "routeCode": {
+            "type": "string"
+          },
+          "fromStopName": {
+            "type": "string"
+          },
+          "toStopName": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "waitingMinutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "AssignRequest": {
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "vehicleId"
+        ]
+      },
+      "AlertDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SOS",
+              "OVERSPEED",
+              "BREAKDOWN",
+              "ACCIDENT",
+              "DELAY",
+              "FUEL",
+              "DOC_EXPIRY",
+              "NO_SHOW",
+              "DEMAND",
+              "ROUTE_DEVIATION",
+              "OTHER"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "CRITICAL",
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ACKNOWLEDGED",
+              "RESOLVED"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "bookingCode": {
+            "type": "string"
+          },
+          "raisedBy": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "minutesAgo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "acknowledgedBy": {
+            "type": "string"
+          },
+          "resolvedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 0
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "password",
+          "username"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          }
+        }
+      },
+      "UserSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "EMPLOYEE",
+              "DRIVER",
+              "DESK",
+              "ADMIN"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "StopDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "zone": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "geofenceM": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EmployeeProfileDto": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "personnelNo": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "string"
+          },
+          "costCentreCode": {
+            "type": "string"
+          },
+          "costCentreName": {
+            "type": "string"
+          },
+          "exclusiveEligible": {
+            "type": "boolean"
+          },
+          "bookingPaused": {
+            "type": "boolean"
+          },
+          "noShowsInWindow": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RiderHomeDto": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/EmployeeProfileDto"
+          },
+          "activeBooking": {
+            "$ref": "#/components/schemas/BookingDto"
+          },
+          "upcomingCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "savedPlaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavedPlaceDto"
+            }
+          },
+          "defaultFromStopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nextShuttle": {
+            "$ref": "#/components/schemas/ShuttleInfoDto"
+          },
+          "unreadNotifications": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SavedPlaceDto": {
+        "type": "object",
+        "properties": {
+          "stopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stopName": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "trips": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ShuttleInfoDto": {
+        "type": "object",
+        "properties": {
+          "vehicleCode": {
+            "type": "string"
+          },
+          "routeLabel": {
+            "type": "string"
+          },
+          "stopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stopName": {
+            "type": "string"
+          },
+          "minutesToNext": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "frequencyMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatCapacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "firstRunAt": {
+            "type": "string"
+          }
+        }
+      },
+      "DestinationDto": {
+        "type": "object",
+        "properties": {
+          "stopId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stopCode": {
+            "type": "string"
+          },
+          "stopName": {
+            "type": "string"
+          },
+          "routeId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "routeCode": {
+            "type": "string"
+          },
+          "routeName": {
+            "type": "string"
+          },
+          "rideMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rideKm": {
+            "type": "number"
+          }
+        }
+      },
+      "BookingSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bookingCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "PENDING_APPROVAL",
+              "REQUESTED",
+              "ASSIGNED",
+              "ONBOARD",
+              "COMPLETED",
+              "CANCELLED",
+              "NO_SHOW",
+              "REJECTED"
+            ]
+          },
+          "rideType": {
+            "type": "string",
+            "enum": [
+              "SHARED",
+              "EXCLUSIVE"
+            ]
+          },
+          "fromStopName": {
+            "type": "string"
+          },
+          "toStopName": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "distanceKm": {
+            "type": "number"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "costAmount": {
+            "type": "number"
+          },
+          "cancelReason": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "TrackingDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "stageLabel": {
+            "type": "string"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "registrationNo": {
+            "type": "string"
+          },
+          "routeLabel": {
+            "type": "string"
+          },
+          "fromStopName": {
+            "type": "string"
+          },
+          "toStopName": {
+            "type": "string"
+          },
+          "vehicleAt": {
+            "type": "string"
+          },
+          "etaToPickupMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "etaToDropMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressStopDto"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NotificationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "category": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "read": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DocumentStatus": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "expiresOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "daysLeft": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "EXPIRING",
+              "EXPIRED"
+            ]
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "VehicleOptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "registrationNo": {
+            "type": "string"
+          },
+          "vehicleType": {
+            "type": "string"
+          },
+          "seatCapacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vendorName": {
+            "type": "string"
+          },
+          "odometerKm": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currentStopName": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "blockedReason": {
+            "type": "string"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentStatus"
+            }
+          }
+        }
+      },
+      "DriverProfileDto": {
+        "type": "object",
+        "properties": {
+          "driverId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "driverCode": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "vendorName": {
+            "type": "string"
+          },
+          "gatesAllowed": {
+            "type": "string"
+          },
+          "maxDutyMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentStatus"
+            }
+          },
+          "blockedReason": {
+            "type": "string"
+          },
+          "defaultVehicleId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "duty": {
+            "$ref": "#/components/schemas/DutyDto"
+          }
+        }
+      },
+      "CandidateDto": {
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "feasible": {
+            "type": "boolean"
+          },
+          "etaMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatsTaken": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "KpiDto": {
+        "type": "object",
+        "properties": {
+          "vehiclesOnTrip": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fleetSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seatOccupancyPct": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "avgWaitMinutes": {
+            "type": "number"
+          },
+          "onTimePickupPct": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ridesToday": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "openAlerts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "waitingBookings": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveBoardDto": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/KpiDto"
+          },
+          "vehicles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VehicleLiveDto"
+            }
+          },
+          "alerts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertDto"
+            }
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueItemDto"
+            }
+          }
+        }
+      },
+      "VehicleLiveDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "registrationNo": {
+            "type": "string"
+          },
+          "vehicleType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "routeLabel": {
+            "type": "string"
+          },
+          "locationLabel": {
+            "type": "string"
+          },
+          "riders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "driverName": {
+            "type": "string"
+          },
+          "driverPhone": {
+            "type": "string"
+          },
+          "tripId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tripCode": {
+            "type": "string"
+          },
+          "idleMinutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastPingAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BillingSummaryDto": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "sharingRule": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals"
+          },
+          "costCentres": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostCentreCharge"
+            }
+          },
+          "vendors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorReconciliation"
+            }
+          },
+          "compliance": {
+            "$ref": "#/components/schemas/ComplianceWatch"
+          }
+        }
+      },
+      "ComplianceWatch": {
+        "type": "object",
+        "properties": {
+          "documentsExpiringSoon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "expiredDocuments": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "blockedVehicles": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "blockedDrivers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fullyCompliantVehicles": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalVehicles": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CostCentreCharge": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "trips": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rides": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "km": {
+            "type": "number"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "budget": {
+            "type": "number"
+          },
+          "budgetUsedPct": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "budgetStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "Totals": {
+        "type": "object",
+        "properties": {
+          "trips": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rides": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gpsKm": {
+            "type": "number"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "ridersPerTrip": {
+            "type": "number"
+          }
+        }
+      },
+      "VendorReconciliation": {
+        "type": "object",
+        "properties": {
+          "vendorCode": {
+            "type": "string"
+          },
+          "vendorName": {
+            "type": "string"
+          },
+          "claimedKm": {
+            "type": "number"
+          },
+          "gpsKm": {
+            "type": "number"
+          },
+          "gapKm": {
+            "type": "number"
+          },
+          "gapPct": {
+            "type": "number"
+          },
+          "claimedAmount": {
+            "type": "number"
+          },
+          "gpsAmount": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ComplianceItemDto": {
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "document": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "expiresOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "daysLeft": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "EXPIRING",
+              "EXPIRED"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "blocksDispatch": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuditLogDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "details": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

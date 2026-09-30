@@ -1,0 +1,908 @@
+<meta charset="utf-8">
+<title>Plant Ride Demo Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: each person's journey is a route line of numbered stops, like the app's own stop sequence;
+     every stop pairs a real screenshot with what you see, what to do and what the system does. */
+  :root {
+    --bg: #F3F6F9;
+    --surface: #FFFFFF;
+    --ink: #16202B;
+    --ink-2: #34465A;
+    --muted: #5E6D7D;
+    --line: #D6DFE8;
+    --accent: #E85D04;
+    --accent-ink: #B84A03;
+    --accent-soft: #FFEDE0;
+    --teal: #007A6D;
+    --teal-soft: #DDF5F1;
+    --desk: #34465A;
+    --danger: #C62828;
+    --danger-soft: #FDECEA;
+    --frame: #16202B;
+    --shadow: rgba(22, 32, 43, 0.12);
+    --font-display: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", Calibri, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E141B; --surface: #16202B; --ink: #F3F6F9; --ink-2: #DCE4EC; --muted: #A3B4C4; --line: #2A3A4B;
+      --accent: #FF7A2E; --accent-ink: #FF9E5E; --accent-soft: #3A2414; --teal: #3FD3BE; --teal-soft: #0F3330;
+      --desk: #A3B4C4; --danger: #FF6B6B; --danger-soft: #3B1717; --frame: #05080C; --shadow: rgba(0, 0, 0, 0.45);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E141B; --surface: #16202B; --ink: #F3F6F9; --ink-2: #DCE4EC; --muted: #A3B4C4; --line: #2A3A4B;
+    --accent: #FF7A2E; --accent-ink: #FF9E5E; --accent-soft: #3A2414; --teal: #3FD3BE; --teal-soft: #0F3330;
+    --desk: #A3B4C4; --danger: #FF6B6B; --danger-soft: #3B1717; --frame: #05080C; --shadow: rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg);
+    color: var(--ink-2);
+    font: 16px/1.6 var(--font-body);
+    padding-inline: 16px;
+    margin: 0;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-block: 40px 96px; }
+  h1, h2, h3 { font-family: var(--font-display); color: var(--ink); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -0.01em; }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.1; }
+  h3 { font-size: 1.45rem; line-height: 1.2; }
+  p { margin: 0; }
+  code, .mono { font-family: var(--font-mono); font-size: 0.92em; color: var(--ink); }
+  a { color: var(--accent-ink); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .eyebrow {
+    font: 600 0.78rem/1.2 var(--font-body);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- header ---------- */
+  .intro { display: grid; gap: 20px; max-width: 760px; }
+  .lede { font-size: 1.12rem; color: var(--ink-2); max-width: 66ch; }
+
+  .route {
+    margin-top: 32px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 24px 18px;
+    display: grid;
+    gap: 14px;
+  }
+  .route-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; align-items: baseline; }
+  .route-name { font: 700 1.2rem/1.2 var(--font-display); color: var(--ink); }
+  .route-line { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding-top: 10px; }
+  .route-line::before {
+    content: ""; position: absolute; left: 12px; right: 12px; top: 19px; height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent) 0 100%);
+  }
+  .stopmark { position: relative; display: grid; gap: 6px; justify-items: start; min-width: 0; }
+  .stopmark .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--surface); border: 4px solid var(--accent); }
+  .stopmark.end .dot { background: var(--accent); }
+  .stopmark b { font: 600 0.98rem/1.25 var(--font-body); color: var(--ink); }
+  .stopmark span { font-size: 0.85rem; color: var(--muted); line-height: 1.35; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 28px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 0.95rem; }
+  .facts b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .setup { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+  .accounts { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+  .accounts td { padding: 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .accounts tr:last-child td { border-bottom: 0; }
+  .accounts td:first-child { color: var(--muted); width: 38%; }
+  .order { display: flex; flex-wrap: wrap; gap: 6px; }
+  .order a {
+    text-decoration: none; font: 500 0.85rem/1 var(--font-mono); padding: 6px 9px; border-radius: 999px;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+  }
+  .order a.e { border-color: var(--accent); }
+  .order a.d { border-color: var(--teal); }
+  .note { font-size: 0.9rem; color: var(--muted); }
+
+  /* ---------- journey nav ---------- */
+  .jnav {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    margin: 40px 0 0; padding: 10px 0;
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+  }
+  .jnav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .jnav a {
+    display: inline-flex; gap: 8px; align-items: center; text-decoration: none; color: var(--ink);
+    font: 600 0.95rem/1 var(--font-body); padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  }
+  .jnav a i { width: 10px; height: 10px; border-radius: 50%; background: var(--lane); }
+  .jnav a small { font: 500 0.78rem/1 var(--font-mono); color: var(--muted); }
+
+  /* ---------- journeys ---------- */
+  .journey { padding-top: 56px; scroll-margin-top: 60px; }
+  .journey.employee { --lane: var(--accent); --lane-soft: var(--accent-soft); }
+  .journey.driver { --lane: var(--teal); --lane-soft: var(--teal-soft); }
+  .journey.desk { --lane: var(--desk); --lane-soft: var(--bg); }
+  .journey.wrong { --lane: var(--danger); --lane-soft: var(--danger-soft); }
+  .jnav li.employee a { --lane: var(--accent); }
+  .jnav li.driver a { --lane: var(--teal); }
+  .jnav li.desk a { --lane: var(--desk); }
+  .jnav li.wrong a { --lane: var(--danger); }
+
+  .journey-head { display: grid; gap: 10px; max-width: 760px; padding-bottom: 12px; }
+  .journey-head .who { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.95rem; }
+  .journey-head .who span { color: var(--muted); }
+
+  .steps { position: relative; }
+  .steps::before {
+    content: ""; position: absolute; left: 21px; top: 36px; bottom: 36px; width: 3px; border-radius: 2px;
+    background: var(--lane); opacity: 0.35;
+  }
+  .step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 280px) minmax(0, 1fr);
+    gap: 28px;
+    padding-block: 26px;
+    align-items: start;
+    scroll-margin-top: 70px;
+  }
+  .step.wide { grid-template-columns: 44px minmax(0, 1fr); }
+  .step.wide .copy { grid-column: 2; max-width: 780px; }
+  .marker {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--lane); color: var(--surface);
+    font: 700 0.95rem/1 var(--font-display); letter-spacing: 0.02em;
+    position: relative; z-index: 1;
+    box-shadow: 0 0 0 5px var(--bg);
+  }
+
+  .shot { margin: 0; min-width: 0; }
+  .zoom { all: unset; cursor: zoom-in; display: block; max-width: 100%; }
+  .zoom img { display: block; width: 100%; height: auto; }
+  .phone .zoom {
+    border: 7px solid var(--frame); border-radius: 30px; overflow: hidden;
+    box-shadow: 0 18px 40px -18px var(--shadow), 0 2px 6px var(--shadow);
+    background: #F3F6F9;
+  }
+  .screen .zoom, .tablet .zoom {
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 18px 40px -22px var(--shadow), 0 2px 6px var(--shadow);
+    background: #F3F6F9;
+  }
+  .tablet .zoom { max-width: 460px; border: 9px solid var(--frame); border-radius: 22px; }
+
+  .copy { display: grid; gap: 12px; min-width: 0; align-content: start; padding-top: 4px; }
+  .copy .see { color: var(--ink-2); max-width: 64ch; }
+  .copy dl { margin: 0; display: grid; gap: 10px; }
+  .copy dl > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .copy dt { font: 600 0.78rem/1.6 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .copy dd { margin: 0; max-width: 60ch; }
+  .copy .say {
+    background: var(--lane-soft); border-radius: 12px; padding: 12px 16px;
+    font-style: italic; color: var(--ink); max-width: 62ch;
+  }
+  .copy .cross { font-size: 0.92rem; color: var(--muted); }
+  .copy .cross a { font-family: var(--font-mono); font-size: 0.9em; }
+  .otp { font: 500 1em var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--ink); }
+
+  footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); display: grid; gap: 6px; font-size: 0.9rem; color: var(--muted); }
+
+  /* ---------- enlarge ---------- */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(8, 12, 17, 0.88);
+    display: grid; place-items: center;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    cursor: zoom-out;
+  }
+  .lightbox img { max-width: min(100%, 1600px); max-height: 100%; width: auto; height: auto; border-radius: 10px; }
+  .lightbox p { position: absolute; left: 16px; right: 16px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); text-align: center; color: #DCE4EC; font-size: 0.9rem; }
+
+  @media (max-width: 820px) {
+    .step, .step.wide { grid-template-columns: 36px minmax(0, 1fr); gap: 16px; }
+    .step .shot, .step .copy { grid-column: 2; }
+    .phone { max-width: 300px; }
+    .marker { width: 36px; height: 36px; font-size: 0.82rem; }
+    .steps::before { left: 17px; }
+    .copy dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  }
+  @media (max-width: 560px) {
+    .route-line { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-left: 4px; }
+    .route-line::before { left: 13px; right: auto; top: 12px; bottom: 12px; width: 4px; height: auto; }
+    .stopmark { grid-template-columns: 22px minmax(0, 1fr); column-gap: 12px; }
+    .stopmark .dot { grid-row: span 2; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">SRM ECO TECH · Plant Ride for LHS · MVP demo</p>
+    <h1>Plant Ride demo walkthrough</h1>
+    <p class="lede">
+      Every screen of the demo, page by page, captured from the running MVP. It follows one booking from the
+      employee's phone, through the driver's app, to the transport desk and the month-end bill. Start with the
+      employee; the other people's pages follow in the order they act.
+    </p>
+  </header>
+
+  <section class="route" aria-label="The trip this walkthrough follows">
+    <div class="route-head">
+      <span class="route-name">Route 1 · North corridor · cab C-12 · MH 12 AB 4412</span>
+      <span class="eyebrow">The trip in this walkthrough</span>
+    </div>
+    <div class="route-line">
+      <div class="stopmark"><i class="dot"></i><b>Gate 2</b><span>3 riders board with their OTPs</span></div>
+      <div class="stopmark"><i class="dot"></i><b>Admin Block</b><span>Driven past, nobody gets on or off</span></div>
+      <div class="stopmark"><i class="dot"></i><b>Coke Plant</b><span>M. Iyer is dropped</span></div>
+      <div class="stopmark end"><i class="dot"></i><b>Blast Furnace</b><span>A. Raghavan and S. Banerjee dropped; trip closes</span></div>
+    </div>
+    <div class="facts">
+      <span><b>3.4 km</b> on measured route distance</span>
+      <span><b>3 of 3</b> seats, inside the occupancy cap</span>
+      <span><b>₹61.20</b> trip cost, <b>₹22.86</b> to CC-4471</span>
+      <span><b>0</b> calls to the transport desk</span>
+    </div>
+  </section>
+
+  <div class="setup">
+    <section class="panel" aria-labelledby="accounts-title">
+      <h3 id="accounts-title">Accounts used</h3>
+      <table class="accounts">
+        <tr><td>Employee</td><td><span class="mono">LHS-40218</span> · A. Raghavan, Operations</td></tr>
+        <tr><td>Driver</td><td><span class="mono">DRV-2281</span> · S. Kumar, cab C-12</td></tr>
+        <tr><td>Desk &amp; admin</td><td><span class="mono">admin</span> · R. Kapoor</td></tr>
+        <tr><td>Password</td><td><span class="mono">Plant@123</span> for every account</td></tr>
+        <tr><td>Co-riders' OTPs</td><td>M. Iyer <span class="otp">9317</span> · S. Banerjee <span class="otp">5540</span></td></tr>
+      </table>
+    </section>
+    <section class="panel" aria-labelledby="order-title">
+      <h3 id="order-title">Presenting it live</h3>
+      <p>The pages are grouped by person. In a live demo the screens take turns in this order:</p>
+      <div class="order" aria-label="Live demo order">
+        <a href="#k1">K1–K2</a><a class="d" href="#d1">D1–D3</a><a class="e" href="#e1">E1–E9</a>
+        <a class="d" href="#d4">D4–D6</a><a class="e" href="#e10">E10–E12</a><a class="d" href="#d7">D7–D8</a>
+        <a class="e" href="#e13">E13–E14</a><a href="#k5">K5–K7</a>
+      </div>
+      <p class="note">
+        The driver signs on before the employee books, so the shared cab already carries two riders.
+        Screens were captured in a test run at 03:15 IST, which is why the shuttle shows its 06:00 first run;
+        the flow is the same at any hour. Booking codes differ between captures.
+      </p>
+    </section>
+  </div>
+
+  <nav class="jnav" aria-label="Journeys">
+    <ul>
+      <li class="employee"><a href="#employee"><i></i>Employee <small>E1–E18</small></a></li>
+      <li class="driver"><a href="#driver"><i></i>Driver <small>D1–D11</small></a></li>
+      <li class="desk"><a href="#desk"><i></i>Transport desk <small>K1–K9</small></a></li>
+      <li class="wrong"><a href="#wrong"><i></i>When things go wrong <small>X1–X4</small></a></li>
+    </ul>
+  </nav>
+
+  <!-- =============================== EMPLOYEE =============================== -->
+  <section class="journey employee" id="employee" aria-labelledby="employee-title">
+    <div class="journey-head">
+      <p class="eyebrow">Journey 1 of 3 · phone app</p>
+      <h2 id="employee-title">The employee books and rides</h2>
+      <p>A. Raghavan needs to get from Gate 2 to the Blast Furnace without phoning the transport desk. Only two steps need any typing.</p>
+      <div class="who"><span>Signed in as</span><b class="mono">LHS-40218</b><span>Cost centre</span><b>CC-4471 · Operations</b></div>
+    </div>
+
+    <div class="steps">
+      <article class="step" id="e1">
+        <div class="marker">E1</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E1 Sign in"><img src="img/e01-login.jpg" width="640" height="1385" alt="Plant Ride sign-in screen with ID and password fields and three demo accounts"></button></figure>
+        <div class="copy">
+          <h3>Sign in</h3>
+          <p class="see">One sign-in screen for everyone. Employees use their P. No., drivers their driver ID, the desk a username. The demo accounts below the form fill both fields in one tap.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Tap <b>Rider · LHS-40218</b>, then <b>Sign in</b>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>A 12-hour session (one shift) is kept in the phone's secure store. Each role lands in its own app: rider, driver or desk.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e2">
+        <div class="marker">E2</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E2 Home"><img src="img/e02-home.jpg" width="640" height="1385" alt="Rider home with Where to button, saved places and cost centre" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Home</h3>
+          <p class="see">A greeting, one big <b>Where to?</b> button, saved places built from the rider's own trips this month, the count of upcoming rides and the cost centre every ride is charged to.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Tap <b>Where to?</b> Tapping a saved place instead rebooks that trip in one tap.</dd></div>
+            <div><dt>Behind the screen</dt><dd>Saved places are the stops the rider actually travels to. A live ride, when there is one, sits at the top of this screen.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e3">
+        <div class="marker">E3</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E3 Choose the drop stop"><img src="img/e03-stop-picker.jpg" width="640" height="1385" alt="Stop picker listing Admin Block, Coke Plant and Blast Furnace with route and minutes" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Choose where to go</h3>
+          <p class="see">With the pickup set to Gate 2, the list shows only stops a route actually reaches from there, each with its route, ride time and distance.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Pick <b>Blast Furnace</b> (Route 1 · 15 min · 3.4 km).</dd></div>
+            <div><dt>Behind the screen</dt><dd>Stops and their order are master data. Cabs serve a route in sequence and never double back, so a stop behind the rider is never offered.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e4">
+        <div class="marker">E4</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E4 Book a ride"><img src="img/e04-book.jpg" width="640" height="1385" alt="Book a ride form with From Gate 2, To Blast Furnace, time chips and seats" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Book a ride</h3>
+          <p class="see">From and To are set. <b>When</b> offers Now or a later pickup; <b>Seats</b> sets how many are travelling.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Keep <b>Now</b> and <b>1</b> seat.</dd></div>
+            <div><dt>Behind the screen</dt><dd>Rides can be scheduled up to 7 days ahead and are matched 20 minutes before pickup. A group larger than the 3-rider cap is steered to an exclusive cab.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e5">
+        <div class="marker">E5</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E5 Rider details"><img src="img/e05-book-details.jpg" width="640" height="1385" alt="Rider details pre-filled with name, contact number and email, and a guest toggle" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Rider details</h3>
+          <p class="see">Name, contact number and email come from the HR record and stay editable. <b>Booking for a guest</b> lets the employee book for a visitor or colleague.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Tap <b>Show ride options</b>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>HR records go stale, so a wrong phone number never blocks a booking; it is the number the driver calls. A guest's ride is charged to the host's cost centre.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e6">
+        <div class="marker">E6</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E6 Ride options"><img src="img/e06-options.jpg" width="640" height="1385" alt="Ride options: shuttle S-03, shared cab C-12 with 2 of 3 seats taken, exclusive cab needing approval" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Ride options</h3>
+          <p class="see">Three ways to ride on one screen. <b>Shuttle S-03</b> runs to a timetable and needs no booking. <b>Shared cab C-12</b> has 2 of 3 seats taken and is at Gate 2 now. <b>Exclusive cab</b> needs approval from the rider's HOD. The occupancy rule and the cost centre are shown before confirming.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Keep <b>Shared cab C-12</b> selected and tap <b>Confirm ride</b>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>The matching engine checked every cab on duty against hard rules, then scored the rest on ETA, detour, empty kilometres and seats already filled. C-12 already carries M. Iyer and S. Banerjee, pooled the moment the driver signed on (<a href="#d3">D3</a>).</dd></div>
+          </dl>
+          <p class="say">"Pick-up runs carry three riders, maximum. A full cab is never offered a fourth."</p>
+        </div>
+      </article>
+
+      <article class="step" id="e7">
+        <div class="marker">E7</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E7 Booking confirmed"><img src="img/e07-booked.jpg" width="640" height="1385" alt="Booking confirmed: cab on the way, vehicle MH 12 AB 4412, driver S. Kumar with a call button" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Booking confirmed</h3>
+          <p class="see">The moment the booking succeeds: the cab's ETA, progress (Booked · Driver assigned · On the way · At your stop · On trip), the vehicle number <b>MH 12 AB 4412</b>, cab C-12, driver <b>S. Kumar</b> with a <b>Call</b> button, and the promised pickup time.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The screen refreshes every 4 seconds while the ride is live. A retried tap on Confirm never books twice: each attempt carries its own request key.</dd></div>
+          </dl>
+          <p class="say">"Vehicle number and driver contact are the two things people phone the desk for today. That call is gone."</p>
+        </div>
+      </article>
+
+      <article class="step" id="e8">
+        <div class="marker">E8</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E8 Boarding OTP and tracking link"><img src="img/e08-booked-otp.jpg" width="640" height="1385" alt="Four-digit boarding OTP and a live tracking link with Share trip and Copy link buttons" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Boarding OTP and tracking link</h3>
+          <p class="see">A 4-digit <b>boarding OTP</b> to show the driver, and a <b>live tracking link</b> with <b>Share trip</b> and <b>Copy link</b>.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Optionally open the link on another screen (<a href="#e9">E9</a>).</dd></div>
+            <div><dt>Behind the screen</dt><dd>The OTP proves the right rider boards the right cab, which is what makes shared rides auditable. The link can go to a manager or family for a night trip.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e9">
+        <div class="marker">E9</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E9 Shared tracking link"><img src="img/e09-tracking-link.jpg" width="640" height="1385" alt="Public tracking page: cab on the way from Gate 2 to Blast Furnace, vehicle and last seen stop" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>The shared tracking link</h3>
+          <p class="see">What anyone with the link sees, with no login: route, vehicle number, cab, where it was last seen and the stops ahead. It refreshes every 5 seconds.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The page shows the vehicle, never the people: no names, no phone numbers. It stops working when the trip closes (<a href="#e14">E14</a>).</dd></div>
+          </dl>
+          <p class="cross">Meanwhile the driver taps <b>Arrived at Gate 2</b> (<a href="#d4">D4</a>).</p>
+        </div>
+      </article>
+
+      <article class="step" id="e10">
+        <div class="marker">E10</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E10 Your cab has arrived"><img src="img/e10-cab-arrived.jpg" width="640" height="1385" alt="Your cab has arrived, with a large boarding OTP to show the driver" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Your cab has arrived</h3>
+          <p class="see">The screen flips as soon as the driver arrives: large OTP digits under <b>Show this to the driver</b>, and the seat rule in plain words, "3 of 3 riders on this pick-up · seat 4 held free by policy".</p>
+          <dl>
+            <div><dt>Do</dt><dd>Show the code; the driver types it (<a href="#d5">D5</a>–<a href="#d6">D6</a>).</dd></div>
+            <div><dt>Behind the screen</dt><dd>The rider is also notified "Cab C-12 is at Gate 2", with the OTP and the 5-minute wait.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e11">
+        <div class="marker">E11</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E11 Trip in progress"><img src="img/e11-on-trip.jpg" width="640" height="1385" alt="Trip in progress with drop at Blast Furnace in 16 minutes" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Trip in progress</h3>
+          <p class="see">Once the driver accepts the OTP: the drop ETA (16 min to Blast Furnace), where the cab was last seen, and the vehicle and driver.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The trip started when the first rider boarded. The OTP is no longer needed, so it is no longer shown.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e12">
+        <div class="marker">E12</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E12 Stops on this run"><img src="img/e12-on-trip-stops.jpg" width="640" height="1385" alt="Stops on this run: Gate 2 cab is here, Coke Plant next stop, Blast Furnace your drop, and an SOS button" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Stops on this run</h3>
+          <p class="see">Every stop on the run up to the rider's drop: Gate 2 (cab is here), Coke Plant (next stop), Blast Furnace (your drop). "Sharing with 2 colleagues · 3 of 3 seats used", and a red <b>SOS</b> button.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>SOS alerts the transport desk and plant security together, with the cab's live location.</dd></div>
+          </dl>
+          <p class="cross">Meanwhile the driver drops M. Iyer at Coke Plant, then arrives at Blast Furnace (<a href="#d7">D7</a>–<a href="#d8">D8</a>).</p>
+        </div>
+      </article>
+
+      <article class="step" id="e13">
+        <div class="marker">E13</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E13 Trip complete and rating"><img src="img/e13-complete-rating.jpg" width="640" height="1385" alt="Trip complete: Gate 2 to Blast Furnace, 3.4 km shared, charged 22.86 rupees to CC-4471, with a five-star rating form" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Trip complete, charged and rated</h3>
+          <p class="see">Gate 2 to Blast Furnace · 3.4 km · Shared. <b>Charged to CC-4471 · Operations: ₹22.86.</b> Below it, a rating in one tap: stars plus tags such as On time and Clean cab.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Tap five stars, <b>On time</b>, <b>Clean cab</b>, then <b>Submit rating</b>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>Arriving at the drop closed the ride; in the plant a GPS geofence does this without a tap. The trip cost ₹61.20 (3.4 km × the cab's rate), split by kilometres ridden: 2.3 km for M. Iyer and 3.4 km for each of the other two, across three cost centres, to the paisa.</dd></div>
+          </dl>
+          <p class="say">"Ratings feed the vendor SLA report, not just a score."</p>
+        </div>
+      </article>
+
+      <article class="step" id="e14">
+        <div class="marker">E14</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E14 Tracking link expired"><img src="img/e14-tracking-expired.jpg" width="640" height="1385" alt="Tracking page reading: This trip has ended" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>The link expires</h3>
+          <p class="see">The same shared link now reads <b>This trip has ended</b>.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Nobody can follow the vehicle once the rider has been dropped.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e15">
+        <div class="marker">E15</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E15 My trips, past"><img src="img/e15-trips-past.jpg" width="640" height="1385" alt="My trips, Past tab: completed rides with distance, cab and charge" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>My trips · Past</h3>
+          <p class="see">Every completed ride with its date, route, distance, cab, charge and rating. The ride just taken is at the top: 3.4 km · C-12 · ₹22.86 · 5★.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>This is what employees use to query a charge, and what finance uses to answer them.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e16">
+        <div class="marker">E16</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E16 My trips, upcoming"><img src="img/e16-trips-upcoming.jpg" width="640" height="1385" alt="My trips, Upcoming tab: a scheduled ride tomorrow at 08:05 from Gate 2 to Admin Block" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>My trips · Upcoming</h3>
+          <p class="see">A ride booked ahead: tomorrow 08:05, Gate 2 to Admin Block, <b>Scheduled</b>. The <b>Cancelled</b> tab keeps cancellations and no-shows.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Scheduled rides are pooled at dispatch time, 20 minutes before pickup.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e17">
+        <div class="marker">E17</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E17 Alerts"><img src="img/e17-alerts.jpg" width="640" height="1385" alt="Alerts list: charged, arrived, trip started, cab at Gate 2, cab on the way" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Alerts</h3>
+          <p class="see">The rider is told at every step, newest first: cab on the way (with the OTP), cab at Gate 2, trip started, arrived at Blast Furnace, and the charge to CC-4471.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Every message is logged with its delivery status. In the MVP they are in-app; SMS, WhatsApp and push plug in behind the same service.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="e18">
+        <div class="marker">E18</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge E18 Me"><img src="img/e18-me.jpg" width="640" height="1385" alt="Profile: P. No., email, contact, grade, cost centre, exclusive ride rule and no-show count" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Me</h3>
+          <p class="see">The HR details behind every booking, the cost centre, whether exclusive rides need approval, the no-show count ("0 of 3 allowed"), and the privacy note.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Three no-shows in 30 days pause booking (<a href="#x3">X3</a>). Plant Ride tracks vehicles, not people.</dd></div>
+          </dl>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- =============================== DRIVER =============================== -->
+  <section class="journey driver" id="driver" aria-labelledby="driver-title">
+    <div class="journey-head">
+      <p class="eyebrow">Journey 2 of 3 · phone app mounted in the cab</p>
+      <h2 id="driver-title">The driver signs on and runs the queue</h2>
+      <p>Often wearing gloves, often in sunlight: big targets and one job per screen. If drivers skip the app there is no live data, so simplicity here is a requirement.</p>
+      <div class="who"><span>Signed in as</span><b class="mono">DRV-2281</b><span>Vehicle</span><b>C-12 · MH 12 AB 4412 · LHS own fleet</b></div>
+    </div>
+
+    <div class="steps">
+      <article class="step" id="d1">
+        <div class="marker">D1</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D1 Start-of-duty check"><img src="img/d01-signon.jpg" width="640" height="1385" alt="Start-of-duty check: driving licence and gate pass valid, vehicle list with C-12 selected and others blocked" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Start-of-duty check</h3>
+          <p class="see">The driver's licence and gate pass with their validity, then the vehicles this driver may take. <b>C-12</b> is pre-selected and flags <b>PUC certificate expires in 6 days</b>. C-21 is on duty with A. Singh, and C-44 is off-road.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>An expired licence, gate pass, insurance, fitness or PUC blocks the duty outright (<a href="#x4">X4</a>). Own-fleet drivers see own-fleet cabs; vendor drivers see their vendor's.</dd></div>
+          </dl>
+          <p class="say">"Compliance is enforced here, not discovered at the gate."</p>
+        </div>
+      </article>
+
+      <article class="step" id="d2">
+        <div class="marker">D2</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D2 Vehicle check and odometer"><img src="img/d02-signon-check.jpg" width="640" height="1385" alt="Vehicle check with five items ticked, opening odometer 41208 km and Sign on for duty button" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Vehicle check and odometer</h3>
+          <p class="see">Five checks: tyres, lights, seat belts, fuel, first-aid kit. The opening odometer is pre-filled from the last recorded reading (41,208 km).</p>
+          <dl>
+            <div><dt>Do</dt><dd>Tick all five, then <b>Sign on for duty</b>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>The queue stays locked until the check is complete. A reading below the last recorded one is refused. This reading starts the day's distance log.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d3">
+        <div class="marker">D3</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D3 Trip queue"><img src="img/d03-queue.jpg" width="640" height="1385" alt="Trip queue: Route 1, 0 of 3 on board, Arrived at Gate 2 button, stops Gate 2, Coke Plant, Blast Furnace" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>The trip queue fills itself</h3>
+          <p class="see">Straight after sign-on: <b>Route 1 · North corridor</b>, 0 of 3 on board, speed limit 20 km/h. Stops in route order: Gate 2 (pick up 2), Coke Plant (drop 1), Blast Furnace (drop 1). One big <b>Arrived at Gate 2</b> button, plus <b>Navigate</b> and <b>SOS</b>.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>M. Iyer and S. Banerjee were waiting at Gate 2 with no cab free. They were matched to C-12 the moment the duty started. When A. Raghavan books (<a href="#e6">E6</a>), Gate 2 becomes "Pick up 3".</dd></div>
+          </dl>
+          <p class="say">"The sequence comes from the route master, not the driver. No call from the desk."</p>
+        </div>
+      </article>
+
+      <article class="step" id="d4">
+        <div class="marker">D4</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D4 At Gate 2"><img src="img/d04-at-gate2.jpg" width="640" height="1385" alt="At Gate 2: each waiting rider with name, P. No., destination, call button, OTP field, Board button and a no-show countdown" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>At Gate 2</h3>
+          <p class="see">After <b>Arrived at Gate 2</b>, each waiting rider gets a card: name, P. No., destination, <b>Call</b>, an OTP field with <b>Board</b>, and a <b>No-show in 5:00</b> countdown.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Type each rider's code and tap <b>Board</b>. Co-riders: M. Iyer <span class="otp">9317</span>, S. Banerjee <span class="otp">5540</span>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>A no-show can only be marked after the route's 5-minute wait, and the cab cannot leave while a rider here is neither boarded nor marked.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d5">
+        <div class="marker">D5</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D5 Wrong code"><img src="img/d05-wrong-otp.jpg" width="640" height="1385" alt="Error: That code does not match A. Raghavan. 4 tries left." loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>A wrong code</h3>
+          <p class="see">"That code does not match A. Raghavan. 4 tries left."</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Every wrong attempt is recorded, even though the request fails. After five, boarding for that rider locks until the desk verifies them, so the 4-digit code cannot be guessed.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d6">
+        <div class="marker">D6</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D6 All aboard"><img src="img/d06-boarded.jpg" width="640" height="1385" alt="On trip: 3 of 3 on board, 0 seats left, three riders marked OTP OK, Arrived at Coke Plant button" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>All aboard</h3>
+          <p class="see"><b>3 of 3</b> on board, 0 seats left, status <b>On trip</b>. All three riders show <b>OTP OK</b>. Next: <b>Arrived at Coke Plant</b> (drop 1 rider, about 10 min).</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The rider's screen switches to Trip in progress (<a href="#e11">E11</a>) and the desk board shows C-12 on trip, 3 of 3 (<a href="#k4">K4</a>).</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d7">
+        <div class="marker">D7</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D7 After the first drop"><img src="img/d07-after-coke-plant.jpg" width="640" height="1385" alt="At Coke Plant: M. Iyer dropped, 2 of 3 on board, Arrived at Blast Furnace button" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>First drop: Coke Plant</h3>
+          <p class="see">"M. Iyer dropped". 2 of 3 on board. Gate 2 is marked done. Next: <b>Arrived at Blast Furnace</b>, drop 2 riders.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Arriving at a stop completes every ride that ends there. In the plant, a GPS ping inside the stop's geofence records the arrival without a tap.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d8">
+        <div class="marker">D8</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D8 Trip closed"><img src="img/d08-trip-closed.jpg" width="640" height="1385" alt="Waiting for pickups: 1 trip, 3 riders; No pickups yet" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Trip closed</h3>
+          <p class="see">After the last drop: <b>Waiting for pickups</b>, 1 trip and 3 riders so far, and "No pickups yet. New riders appear here automatically, in route order."</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The last drop closes the trip: it is costed on route kilometres and split across the riders' cost centres. The cab is free, so anyone waiting is matched to it straight away.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d9">
+        <div class="marker">D9</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D9 Report an issue"><img src="img/d09-issues.jpg" width="640" height="1385" alt="Report an issue: breakdown, accident, delay, fuel entry, other, with a details box" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Report an issue</h3>
+          <p class="see">Breakdown, accident, delay, fuel entry or other, a short description, and <b>Send to transport desk</b>.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>A breakdown takes the cab off the road, puts its riders back in the queue from the last stop reached (same OTP), and alerts the desk. A delay notifies the riders on board.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d10">
+        <div class="marker">D10</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D10 Close duty"><img src="img/d10-duty.jpg" width="640" height="1385" alt="Duty tab: documents, current duty summary, closing odometer 41214 and fuel 2.5 litres" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Close duty</h3>
+          <p class="see">The duty so far (vehicle, start time, hours used of 9, trips, riders, distance) and the close-out: closing odometer and fuel drawn.</p>
+          <dl>
+            <div><dt>Do</dt><dd>Enter the closing reading and fuel, tap <b>Sign off duty</b>.</dd></div>
+            <div><dt>Behind the screen</dt><dd>Sign-off is refused while a trip is still open.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="d11">
+        <div class="marker">D11</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge D11 Duty closed"><img src="img/d11-duty-closed.jpg" width="640" height="1385" alt="Duty closed: 1 trip, 3.4 km GPS distance, 3 riders, and GPS km matches the odometer" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Duty closed</h3>
+          <p class="see">1 trip completed, 3.4 km GPS distance, 3 riders carried, and <b>GPS km matches the odometer</b> (odometer 6 km against 3.4 km on trips).</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>This is where the vendor bill and the fuel log come from. An odometer reading that undercuts GPS, or runs far beyond it, is flagged for review.</dd></div>
+          </dl>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- =============================== DESK =============================== -->
+  <section class="journey desk" id="desk" aria-labelledby="desk-title">
+    <div class="journey-head">
+      <p class="eyebrow">Journey 3 of 3 · web console on the desk monitor</p>
+      <h2 id="desk-title">The transport desk runs the day and closes the month</h2>
+      <p>The admin journey makes the other two work: every rule the rider and driver experience is set here.</p>
+      <div class="who"><span>Signed in as</span><b class="mono">admin</b><span>Role</span><b>Fleet admin &amp; desk (R. Kapoor)</b></div>
+    </div>
+
+    <div class="steps">
+      <article class="step wide" id="k1">
+        <div class="marker">K1</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K1 Live board"><img src="img/k01-board.jpg" width="1800" height="1125" alt="Live board: KPIs, live fleet list and Needs attention alerts" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Live board</h3>
+          <p class="see">The whole fleet on one screen, refreshed every 5 seconds. Across the top: vehicles in service (3 of 9), seat occupancy today, average wait, on-time pickups, riders waiting and open alerts. Left: every vehicle with its state, route, riders and driver. Right, <b>Needs attention</b>: C-09's expired insurance (blocked from dispatch), K. Joshi's expired gate pass (blocked from duty), C-07's overspeed, C-44's breakdown.</p>
+          <dl>
+            <div><dt>Do</dt><dd><b>Acknowledge</b> or <b>Resolve</b> an alert; <b>Take off-road</b> sends a cab's riders back to matching.</dd></div>
+          </dl>
+          <p class="say">"An expired document blocks dispatch outright. It is not a warning."</p>
+        </div>
+      </article>
+
+      <article class="step wide" id="k2">
+        <div class="marker">K2</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K2 Queue"><img src="img/k02-queue.jpg" width="1800" height="1125" alt="Queue: an exclusive ride needing approval and two riders waiting for a cab with the engine's reasons" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Queue</h3>
+          <p class="see">Before the driver signs on: P. Sharma's exclusive ride waits for approval (<b>Approve</b> / <b>Reject</b>), and M. Iyer and S. Banerjee wait at Gate 2. Under each waiting rider, the engine says why no cab could take them: C-21's driver is 8 h 52 into a 9-hour shift, C-07 and C-33 are on other routes, C-44 is off-road.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Every decision is auditable. A request no cab can serve within 90 minutes is closed and the rider asked to book again.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step wide" id="k3">
+        <div class="marker">K3</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K3 Assign a cab"><img src="img/k03-candidates.jpg" width="1800" height="1125" alt="Assign a cab panel listing every on-duty cab with the rule that rules it out, including C-12 at its 3-rider cap" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Assign a cab: the override</h3>
+          <p class="see">A fourth rider, N. Gupta, wants Gate 2 to Admin Block while C-12 is full (<a href="#x1">X1</a>). <b>Assign a cab</b> lists every cab on duty with the rule that rules it out, down to "C-12 is at its 3-rider cap (3 of 3 between Gate 2 and Admin Block)".</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The desk can override a match, reassign a rider or book by hand, but the hard rules (occupancy cap, documents, duty hours) still apply to an override.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step wide" id="k4">
+        <div class="marker">K4</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K4 Board during the trip"><img src="img/k04-board-live.jpg" width="1800" height="1125" alt="Live board during the trip: C-12 on trip with 3 of 3 riders" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>The board during the trip</h3>
+          <p class="see">Vehicles in service is now 4 of 9. <b>C-12</b> shows <b>On trip</b> on Route 1, Gate 2 to Blast Furnace, <b>3 of 3</b> riders, driver S. Kumar, with its amber document flag.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>One booking became a driver's pickup and a line on the desk board, without anyone making a call.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step wide" id="k5">
+        <div class="marker">K5</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K5 Billing and cost centres"><img src="img/k05-billing.jpg" width="1800" height="1125" alt="Billing: monthly totals, charges by cost centre with budget bars, vendor bill against GPS with a dispute, compliance watch" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Billing &amp; cost centres</h3>
+          <p class="see">The month at a glance: trips, rides charged, GPS distance, transport cost and riders per trip. <b>Charges by cost centre</b> with budget bars that turn amber at 80% and red at 100%. <b>Vendor bill vs GPS</b>: Vendor A matches; <b>Vendor B billed 21.2 km (6.5%) more than GPS recorded</b> and is flagged as a dispute. <b>Compliance watch</b> summarises expiring and expired documents.</p>
+          <dl>
+            <div><dt>Do</dt><dd><b>Export to SAP (CSV)</b>: one line per ride for the month-end ERP import. ◀ ▶ switches month.</dd></div>
+          </dl>
+          <p class="say">"GPS kilometres are the contractual source. That cross-check pays for itself in the first month."</p>
+        </div>
+      </article>
+
+      <article class="step wide" id="k6">
+        <div class="marker">K6</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K6 Routes and rules"><img src="img/k06-routes-rules.jpg" width="1800" height="1125" alt="Routes and rules: Route 1 with max passengers 3, max wait 5 minutes, max detour 7 minutes, speed limit 20 km/h" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Routes &amp; rules</h3>
+          <p class="see">Route 1's rules: <b>max passengers per pick-up 3</b>, max wait at a stop 5 min, max detour for riders on board 7 min, zone speed limit 20 km/h. Edit with − and +, then <b>Save rules</b>.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The change applies to the next match and is written to the audit trail. Raising the cap lets a waiting rider in immediately. Two admins cannot overwrite each other: a stale save is refused.</dd></div>
+          </dl>
+          <p class="say">"The three-rider cap is a setting per route. LHS changes it here, and no software release is needed."</p>
+        </div>
+      </article>
+
+      <article class="step wide" id="k7">
+        <div class="marker">K7</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K7 Stop sequence and document compliance"><img src="img/k07-sequence-compliance.jpg" width="1800" height="1125" alt="Stop sequence with leg minutes and kilometres and reorder arrows, and a document compliance list" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Stop sequence and document compliance</h3>
+          <p class="see">Route 1's stops in order (Gate 2, Admin Block, Coke Plant, Blast Furnace, Gate 2) with the minutes and kilometres of each leg and arrows to reorder them. Below, every document that is expiring or expired: K. Joshi's gate pass and C-09's insurance (blocked), C-12's PUC and C-33's insurance (6 days).</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Resequencing is refused while the route has rides booked or running, because those rides refer to positions in the old order. Alerts go out at 30, 7 and 1 days before expiry.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step wide" id="k8">
+        <div class="marker">K8</div>
+        <figure class="shot screen"><button class="zoom" type="button" aria-label="Enlarge K8 Audit trail"><img src="img/k08-audit.jpg" width="1800" height="1125" alt="Audit trail: duty ended, trip completed, booking cancelled, booking created, duty started" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Audit trail</h3>
+          <p class="see">Who booked, who changed it, who approved and who overrode, newest first: the day's sign-on, bookings, the completed trip with its kilometres and cost, and the sign-off.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Every state-changing action writes one line, committed together with the action itself. Demo tools at the bottom reload the starting data between rehearsals.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step wide" id="k9">
+        <div class="marker">K9</div>
+        <figure class="shot tablet"><button class="zoom" type="button" aria-label="Enlarge K9 Desk on a tablet"><img src="img/k09-desk-tablet.jpg" width="1230" height="1770" alt="Live board on a tablet for the desk role, with Live board and Queue tabs only" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>The desk on a tablet</h3>
+          <p class="see">The same board on a tablet at the gate, signed in as the desk role (<span class="mono">desk</span>, J. Thomas). Navigation moves to the bottom, and only <b>Live board</b> and <b>Queue</b> appear.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Billing and routes &amp; rules are admin-only, enforced by the server, not just hidden in the app.</dd></div>
+          </dl>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- =============================== EXCEPTIONS =============================== -->
+  <section class="journey wrong" id="wrong" aria-labelledby="wrong-title">
+    <div class="journey-head">
+      <p class="eyebrow">Exception paths</p>
+      <h2 id="wrong-title">When things go wrong</h2>
+      <p>The happy path sells the product. These paths decide whether people keep using it.</p>
+    </div>
+
+    <div class="steps">
+      <article class="step" id="x1">
+        <div class="marker">X1</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge X1 The cab is full"><img src="img/x01-full-cab-options.jpg" width="640" height="1385" alt="Ride options for Gate 2 to Admin Block: shared cab reads Every cab is busy or full" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>The cab is full</h3>
+          <p class="see">N. Gupta (<span class="mono">LHS-44190</span>) asks for Gate 2 to Admin Block while C-12 carries three. The shared option reads "Every cab is busy or full · you get the next free one".</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>C-12 is dropped by the cap before scoring. Two riders racing for one last seat cannot both get it: the engine locks the route while it decides.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="x2">
+        <div class="marker">X2</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge X2 Finding your cab"><img src="img/x02-full-cab-queued.jpg" width="640" height="1385" alt="Finding your cab: the rider is in the queue and gets the next free cab automatically" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Finding your cab</h3>
+          <p class="see">Confirmed anyway: "You are in the queue and get the next free cab automatically. The transport desk can see your request." <b>Cancel ride</b> stays available.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>Waiting requests are matched every 15 seconds and whenever a cab frees up. The desk sees them in the queue (<a href="#k3">K3</a>).</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="x3">
+        <div class="marker">X3</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge X3 Booking paused"><img src="img/x03-booking-paused.jpg" width="640" height="1385" alt="Home for H. Patel: Booking is paused after 3 no-shows in the last 30 days" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Booking paused after no-shows</h3>
+          <p class="see">H. Patel (<span class="mono">LHS-52287</span>) sees "Booking is paused: 3 no-shows in the last 30 days. Contact the transport desk to restore booking." <b>Where to?</b> is disabled.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>A no-show is recorded against policy, not argued at the gate. The count and window are settings LHS owns.</dd></div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="step" id="x4">
+        <div class="marker">X4</div>
+        <figure class="shot phone"><button class="zoom" type="button" aria-label="Enlarge X4 Duty blocked"><img src="img/x04-duty-blocked.jpg" width="640" height="1385" alt="Start-of-duty check for K. Joshi: Duty is blocked because the gate pass expired" loading="lazy"></button></figure>
+        <div class="copy">
+          <h3>Duty blocked</h3>
+          <p class="see">K. Joshi (<span class="mono">DRV-2310</span>): "Duty is blocked. K. Joshi's gate pass expired on 27 Sep 2026." The gate pass shows in red as expired 3 days ago.</p>
+          <dl>
+            <div><dt>Behind the screen</dt><dd>The same block applies to a cab: C-09's expired insurance keeps it out of every match and every sign-on.</dd></div>
+          </dl>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    <p>Captured from the Plant Ride MVP build on 30 September 2026 with the demo seed data (dates in the seed are relative to the day it is loaded).</p>
+    <p>The minute-by-minute presenter script is <span class="mono">docs/04-demo-script.md</span> in the project repository.</p>
+  </footer>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged screenshot" hidden>
+  <img id="lightbox-img" alt="">
+  <p>Click anywhere or press Esc to close</p>
+</div>
+
+<script>
+  (function () {
+    var box = document.getElementById('lightbox');
+    var big = document.getElementById('lightbox-img');
+    var opener = null;
+    function open(btn) {
+      var img = btn.querySelector('img');
+      big.src = img.getAttribute('src');
+      big.alt = img.alt;
+      opener = btn;
+      box.hidden = false;
+      box.focus();
+    }
+    function close() {
+      box.hidden = true;
+      big.removeAttribute('src');
+      if (opener) opener.focus();
+    }
+    box.tabIndex = -1;
+    document.querySelectorAll('.zoom').forEach(function (btn) {
+      btn.addEventListener('click', function () { open(btn); });
+    });
+    box.addEventListener('click', close);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !box.hidden) close();
+    });
+  })();
+</script>

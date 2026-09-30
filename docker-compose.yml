@@ -1,0 +1,53 @@
+# Plant Ride MVP: MySQL 8 + the Spring Boot API.
+#
+#   docker compose up -d --build        # first run builds the API image (~3-5 min)
+#   docker compose logs -f api          # wait for "Started PlantRideApplication"
+#   docker compose down                 # stop (add -v to drop the database volume)
+#
+# The API is on http://localhost:8080 (Swagger: /swagger-ui.html).
+# MySQL is published on host port 3307 so it does not clash with a local MySQL on 3306.
+# The mobile app runs outside Docker: see README ("Run the mobile app").
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: plantride-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: app_mvp
+      TZ: Asia/Kolkata
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build: ./backend
+    container_name: plantride-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/app_mvp?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      # always = reseed the demo on every start. Use never to keep data between restarts.
+      DB_INIT_MODE: always
+      # Change for anything beyond a local demo (at least 32 characters).
+      JWT_SECRET: plant-ride-docker-demo-secret-change-me-0123456789abcdef
+      # The address phones use to open shared tracking links, e.g. http://192.168.1.20:8080
+      PUBLIC_BASE_URL: http://localhost:8080
+      DEMO_RESET_ENABLED: "true"
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql-data:

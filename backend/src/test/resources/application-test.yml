@@ -1,0 +1,22 @@
+# Integration tests run against a real MySQL 8 (the constraints under test are MySQL's).
+# Defaults match the local setup; override TEST_DB_* in CI.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/app_mvp_test?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
+    username: ${TEST_DB_USERNAME:root}
+    password: ${TEST_DB_PASSWORD:root}
+  sql:
+    init:
+      mode: always
+
+plantride:
+  dispatch:
+    # The 15-second sweep is off so tests are deterministic. Event-driven dispatch
+    # (after sign-on, trip close, approval) still runs, exactly as in production.
+    enabled: false
+
+logging:
+  level:
+    com.srmecotech.plantride: WARN
+    org.springframework: WARN
+    org.hibernate: WARN

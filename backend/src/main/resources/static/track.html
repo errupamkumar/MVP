@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Plant Ride · Live tracking</title>
+  <style>
+    :root {
+      --ink: #16202B; --ink-2: #34465A; --muted: #5E6D7D; --line: #DCE4EC; --bg: #F3F6F9; --card: #FFFFFF;
+      --accent: #E85D04; --accent-soft: #FFEDE0; --ok: #00A896; --ok-soft: #DDF5F1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #F3F6F9; --ink-2: #DCE4EC; --muted: #A3B4C4; --line: #34465A; --bg: #0E141B; --card: #16202B;
+              --accent-soft: #3A2414; --ok-soft: #0F3330; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Calibri, "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--ink); }
+    main { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+    .brand { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+    .stage { display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+             background: var(--accent-soft); color: var(--accent); }
+    .stage.trip { background: var(--ok-soft); color: var(--ok); }
+    h1 { font-size: 26px; margin: 10px 0 4px; }
+    .sub { color: var(--muted); font-size: 15px; }
+    .eta { font-size: 40px; font-weight: 800; margin: 6px 0 0; }
+    .eta small { font-size: 16px; font-weight: 600; color: var(--muted); }
+    .vehicle { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+    .vehicle b { display: block; font-size: 18px; }
+    ol { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+    li:last-child { border-bottom: 0; }
+    .dot { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--line); flex: none; }
+    .PASSED .dot { background: var(--muted); border-color: var(--muted); }
+    .HERE .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); }
+    .NEXT .dot { border-color: var(--accent); }
+    .PASSED .name { color: var(--muted); }
+    .tag { margin-left: auto; font-size: 12px; color: var(--muted); }
+    .foot { font-size: 12px; color: var(--muted); text-align: center; margin-top: 12px; }
+    .error h1 { font-size: 22px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">Plant Ride · LHS</div>
+  <div id="app"><div class="card"><p class="sub">Loading live position…</p></div></div>
+  <p class="foot">This link shows the vehicle, never the people in it. It stops working when the trip ends.</p>
+</main>
+<script>
+  (function () {
+    var token = location.pathname.split('/').filter(Boolean).pop();
+    var app = document.getElementById('app');
+    var timer = null;
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+      });
+    }
+
+    function render(t) {
+      var onTrip = t.stage === 'ON_TRIP';
+      var eta = onTrip ? t.etaToDropMinutes : t.etaToPickupMinutes;
+      var etaLabel = onTrip ? 'to ' + t.toStopName : t.stage === 'AT_PICKUP' ? 'Cab is at ' + t.fromStopName : 'to ' + t.fromStopName;
+      var stops = (t.stops || []).map(function (s) {
+        var role = s.pickup ? 'pickup' : s.drop ? 'drop' : '';
+        var state = s.state === 'HERE' ? 'cab is here' : s.state === 'NEXT' ? 'next stop' : role;
+        return '<li class="' + esc(s.state) + '"><span class="dot"></span><span class="name">' + esc(s.stopName) +
+          '</span><span class="tag">' + esc(state) + '</span></li>';
+      }).join('');
+      app.innerHTML =
+        '<div class="card"><span class="stage' + (onTrip ? ' trip' : '') + '">' + esc(t.stageLabel) + '</span>' +
+        '<h1>' + esc(t.fromStopName) + ' → ' + esc(t.toStopName) + '</h1>' +
+        '<div class="sub">' + esc(t.routeLabel) + '</div>' +
+        (eta != null && eta >= 1 && t.stage !== 'AT_PICKUP'
+          ? '<p class="eta">' + esc(eta) + ' <small>min ' + esc(etaLabel) + '</small></p>'
+          : '<p class="eta"><small>' + esc(t.stage === 'AT_PICKUP' ? etaLabel
+              : onTrip ? 'Almost at ' + t.toStopName : 'Arriving at ' + t.fromStopName + ' any moment') + '</small></p>') +
+        '</div>' +
+        (t.vehicleCode ? '<div class="card vehicle"><div><span class="sub">Vehicle</span><b>' + esc(t.registrationNo) +
+          '</b></div><div><span class="sub">Cab</span><b>' + esc(t.vehicleCode) + '</b></div><div><span class="sub">Last seen</span><b>' +
+          esc(t.vehicleAt || '—') + '</b></div></div>' : '') +
+        '<div class="card"><ol>' + stops + '</ol></div>' +
+        '<p class="foot">Updated ' + new Date().toLocaleTimeString() + ' · refreshes every 5 seconds</p>';
+    }
+
+    function fail(title, detail) {
+      if (timer) { clearInterval(timer); }
+      app.innerHTML = '<div class="card error"><h1>' + esc(title) + '</h1><p class="sub">' + esc(detail) + '</p></div>';
+    }
+
+    function load() {
+      fetch('/api/public/track/' + encodeURIComponent(token), {cache: 'no-store'})
+        .then(function (r) {
+          if (r.status === 410) { fail('This trip has ended', 'The tracking link expired when the ride closed.'); return null; }
+          if (!r.ok) { fail('Link not found', 'Check the link you were sent.'); return null; }
+          return r.json();
+        })
+        .then(function (t) { if (t) { render(t); } })
+        .catch(function () { /* keep the last view through network gaps */ });
+    }
+
+    load();
+    timer = setInterval(load, 5000);
+  })();
+</script>
+</body>
+</html>

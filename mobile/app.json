@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Plant Ride",
+    "slug": "plant-ride",
+    "version": "0.1.0",
+    "scheme": "plantride",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.srmecotech.plantride",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Plant Ride shares your cab's position with riders and the transport desk while you are on duty."
+      }
+    },
+    "android": {
+      "package": "com.srmecotech.plantride",
+      "adaptiveIcon": {
+        "backgroundColor": "#16202B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Plant Ride shares your cab's position with riders and the transport desk while you are on duty."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
