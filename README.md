@@ -15,6 +15,7 @@ Smart cab booking, pooling, fleet compliance and cost-centre billing for movemen
 | [03 · Self-test & review](docs/03-self-test-and-review.md) | Test results, 14 review findings with fixes, known limitations |
 | [04 · Demo script](docs/04-demo-script.md) | The 5-minute client walkthrough, with credentials and recovery steps |
 | [Demo walkthrough](docs/walkthrough/index.html) | Every screen, page by page with screenshots: employee, driver, transport desk, exception paths. Published copy: https://claude.ai/artifact/V7xxt1JRWaBXrDwKfG19Ej |
+| [User journeys](docs/user-journey/index.html) | Driver, User and Admin journeys step by step, a screenshot per step, a captioned video of each journey, and review findings. Published copy: https://claude.ai/artifact/1TnqEQnB1M4cHGXBqrHDqH |
 
 ---
 
