@@ -1,76 +1,73 @@
 import { useQueryClient } from '@tanstack/react-query';
-import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
 
 import { driverApi } from '@/api/endpoints';
 import type { LocationAckDto } from '@/api/types';
 
 import { keys } from './queries';
+import { type DeviceFix, fixAgeSeconds, type LocationPermission, useLocationWatcher } from './useLocationWatcher';
 
 export interface DriverLocationState {
-  permission: 'unknown' | 'granted' | 'denied' | 'unsupported';
+  permission: LocationPermission;
   lastAck: LocationAckDto | null;
+  /** Date.now() of the last ping the server accepted. */
+  lastSentAt: number | null;
   /** Set when a ping landed inside the next stop's geofence and the server recorded the arrival. */
   autoArrivedAt: string | null;
 }
 
 /**
- * While the driver is on duty, shares the cab's GPS position every ~15 s or
- * 50 m. The server uses it for live tracking, overspeed alerts and geofence
- * arrival. Failures are silent: a dead spot inside the plant must never block
- * the driver's screen (the queue still works by tapping "Arrived").
+ * While the driver is on duty, shares the cab's position every ~10 s (and
+ * at least every 30 s while parked). The server uses it to show riders where
+ * their cab is, for overspeed alerts and for geofence arrival. Failures are
+ * silent: a dead spot inside the plant must never block the driver's screen
+ * (the queue still works by tapping "Arrived"), and the next fix retries.
  */
 export function useDriverLocation(onDuty: boolean): DriverLocationState {
   const qc = useQueryClient();
-  const [state, setState] = useState<DriverLocationState>({ permission: 'unknown', lastAck: null, autoArrivedAt: null });
-  const subscription = useRef<Location.LocationSubscription | null>(null);
+  const [state, setState] = useState<Omit<DriverLocationState, 'permission'>>({
+    lastAck: null,
+    lastSentAt: null,
+    autoArrivedAt: null,
+  });
+  const inFlight = useRef(false);
+  const shared = useRef(false);
 
-  useEffect(() => {
-    if (!onDuty || Platform.OS === 'web') {
-      if (Platform.OS === 'web') setState((s) => ({ ...s, permission: 'unsupported' }));
-      return;
-    }
-    let cancelled = false;
-    (async () => {
+  const send = useCallback(
+    async (fix: DeviceFix) => {
+      // A slow network must not pile up requests; the next fix carries a newer position anyway.
+      if (inFlight.current) return;
+      inFlight.current = true;
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (cancelled) return;
-        if (status !== 'granted') {
-          setState((s) => ({ ...s, permission: 'denied' }));
-          return;
-        }
-        setState((s) => ({ ...s, permission: 'granted' }));
-        subscription.current = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.High, timeInterval: 15_000, distanceInterval: 50 },
-          async (position) => {
-            try {
-              const speed = position.coords.speed;
-              const ack = await driverApi.location({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                speedKmh: speed != null && speed >= 0 ? Math.round(speed * 3.6 * 10) / 10 : null,
-                recordedAt: null,
-              });
-              setState((s) => ({ ...s, lastAck: ack, autoArrivedAt: ack.autoArrivedAt ?? s.autoArrivedAt }));
-              if (ack.autoArrivedAt) {
-                void qc.invalidateQueries({ queryKey: keys.driverQueue });
-              }
-            } catch {
-              // Network gap: the next fix will be sent anyway.
-            }
-          },
-        );
+        const ack = await driverApi.location({
+          latitude: fix.latitude,
+          longitude: fix.longitude,
+          speedKmh: fix.speedKmh,
+          accuracyM: fix.accuracyM,
+          heading: fix.heading,
+          ageSeconds: fixAgeSeconds(fix),
+          recordedAt: null,
+        });
+        const first = !shared.current && !ack.outsideServiceArea;
+        if (!ack.outsideServiceArea) shared.current = true;
+        setState((s) => ({
+          lastAck: ack,
+          lastSentAt: ack.outsideServiceArea ? s.lastSentAt : Date.now(),
+          autoArrivedAt: ack.autoArrivedAt ?? s.autoArrivedAt,
+        }));
+        // The first fix moves the cab on the map now, not at the next queue poll.
+        if (first) void qc.invalidateQueries({ queryKey: keys.driverQueue });
+        // An arrival recorded by GPS changes the queue, and a closed trip changes the duty totals.
+        if (ack.autoArrivedAt) void qc.invalidateQueries({ queryKey: ['driver'] });
       } catch {
-        if (!cancelled) setState((s) => ({ ...s, permission: 'denied' }));
+        // Network gap: the next fix is sent anyway.
+      } finally {
+        inFlight.current = false;
       }
-    })();
-    return () => {
-      cancelled = true;
-      subscription.current?.remove();
-      subscription.current = null;
-    };
-  }, [onDuty, qc]);
+    },
+    [qc],
+  );
 
-  return state;
+  const permission = useLocationWatcher(onDuty, send, { intervalMs: 10_000, refreshMs: 30_000 });
+  return { permission, ...state };
 }

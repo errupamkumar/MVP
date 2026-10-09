@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { adminApi, deskApi, driverApi, masterApi, notificationApi, riderApi } from '@/api/endpoints';
 import type {
+  AvailabilityRequest,
   BookingDto,
   BookingScope,
   CreateBookingRequest,
@@ -11,6 +12,7 @@ import type {
   ReportIssueRequest,
   ResequenceRequest,
   RideOptionsRequest,
+  SavePickupPointRequest,
   StartDutyRequest,
   UpdateRouteRulesRequest,
 } from '@/api/types';
@@ -35,6 +37,8 @@ export const keys = {
   deskQueue: ['desk', 'queue'] as const,
   candidates: (bookingId: number) => ['desk', 'candidates', bookingId] as const,
   adminRoutes: ['admin', 'routes'] as const,
+  adminStops: ['admin', 'stops'] as const,
+  bookingAvailability: (id: number) => ['rider', 'availability', 'booking', id] as const,
   compliance: ['admin', 'compliance'] as const,
   audit: ['admin', 'audit'] as const,
   billing: (period: string) => ['admin', 'billing', period] as const,
@@ -69,6 +73,24 @@ export const useRideOptions = (request: RideOptionsRequest | null) =>
     enabled: request != null,
     // ETAs and free seats go stale fast while the rider is deciding.
     refetchInterval: 15_000,
+  });
+
+/** Where a ride can come from for a pickup and drop; refreshed like the ride options. */
+export const useAvailability = (request: AvailabilityRequest | null) =>
+  useQuery({
+    queryKey: ['rider', 'availability', request],
+    queryFn: () => riderApi.availability(request as AvailabilityRequest),
+    enabled: request != null,
+    refetchInterval: 15_000,
+  });
+
+/** Search progress and availability for a waiting booking, refreshed every 5 s while it waits. */
+export const useBookingAvailability = (id: number, enabled: boolean) =>
+  useQuery({
+    queryKey: keys.bookingAvailability(id),
+    queryFn: () => riderApi.bookingAvailability(id),
+    enabled,
+    refetchInterval: enabled ? 5_000 : false,
   });
 
 export const useMyBookings = (scope: BookingScope) =>
@@ -114,6 +136,12 @@ export const useRateBooking = () => {
     mutationFn: ({ id, body }: { id: number; body: RateBookingRequest }) => riderApi.rate(id, body),
     onSuccess: refresh,
   });
+};
+
+/** Search again now: match a waiting booking straight away instead of at the next sweep. */
+export const useSearchAgain = () => {
+  const refresh = useRiderInvalidation();
+  return useMutation({ mutationFn: (id: number) => riderApi.searchAgain(id), onSuccess: refresh });
 };
 
 export const useRiderSos = () =>
@@ -264,6 +292,23 @@ export const useBilling = (period: string) =>
   useQuery({ queryKey: keys.billing(period), queryFn: () => adminApi.billing(period), placeholderData: (prev) => prev });
 
 export const useAdminRoutes = () => useQuery({ queryKey: keys.adminRoutes, queryFn: adminApi.routes });
+
+export const useAdminStops = () => useQuery({ queryKey: keys.adminStops, queryFn: adminApi.stops });
+
+/** Create (no id) or edit a pickup point; riders' stop lists and route editors refresh with it. */
+export const useSavePickupPoint = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number | null; body: SavePickupPointRequest }) =>
+      id == null ? adminApi.createStop(body) : adminApi.updateStop(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.adminStops });
+      void qc.invalidateQueries({ queryKey: keys.stops });
+      void qc.invalidateQueries({ queryKey: keys.adminRoutes });
+      void qc.invalidateQueries({ queryKey: keys.audit });
+    },
+  });
+};
 
 export const useCompliance = () => useQuery({ queryKey: keys.compliance, queryFn: adminApi.compliance });
 

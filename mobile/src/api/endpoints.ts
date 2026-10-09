@@ -2,6 +2,8 @@ import { api } from './client';
 import type {
   AlertDto,
   AuditLogDto,
+  AvailabilityDto,
+  AvailabilityRequest,
   BillingSummaryDto,
   BookingDto,
   BookingScope,
@@ -23,6 +25,7 @@ import type {
   LocationPingRequest,
   LoginResponse,
   NotificationDto,
+  PickupPointDto,
   QueueItemDto,
   RateBookingRequest,
   ReportIssueRequest,
@@ -30,7 +33,10 @@ import type {
   RideOptionsRequest,
   RideOptionsResponse,
   RiderHomeDto,
+  RiderLocationAckDto,
+  RiderLocationRequest,
   RouteDto,
+  SavePickupPointRequest,
   SosResultDto,
   StartDutyRequest,
   StopDto,
@@ -43,6 +49,9 @@ const get = async <T>(url: string, params?: Record<string, unknown>) => (await a
 const post = async <T>(url: string, body?: unknown, headers?: Record<string, string>) =>
   (await api.post<T>(url, body ?? {}, { headers })).data;
 const put = async <T>(url: string, body: unknown) => (await api.put<T>(url, body)).data;
+const del = async (url: string) => {
+  await api.delete(url);
+};
 
 export const authApi = {
   login: (username: string, password: string) => post<LoginResponse>('/api/auth/login', { username, password }),
@@ -59,12 +68,18 @@ export const riderApi = {
   profile: () => get<EmployeeProfileDto>('/api/rider/profile'),
   destinations: (fromStopId: number) => get<DestinationDto[]>('/api/rider/destinations', { fromStopId }),
   rideOptions: (body: RideOptionsRequest) => post<RideOptionsResponse>('/api/rider/ride-options', body),
+  availability: (body: AvailabilityRequest) => post<AvailabilityDto>('/api/rider/availability', body),
+  bookingAvailability: (id: number) => get<AvailabilityDto>(`/api/rider/bookings/${id}/availability`),
+  searchAgain: (id: number) => post<BookingDto>(`/api/rider/bookings/${id}/search`),
   createBooking: (body: CreateBookingRequest, idempotencyKey: string) =>
     post<BookingDto>('/api/rider/bookings', body, { 'Idempotency-Key': idempotencyKey }),
   bookings: (scope: BookingScope) => get<BookingSummaryDto[]>('/api/rider/bookings', { scope }),
   booking: (id: number) => get<BookingDto>(`/api/rider/bookings/${id}`),
   cancel: (id: number, reason?: string) => post<BookingDto>(`/api/rider/bookings/${id}/cancel`, { reason: reason ?? null }),
   rate: (id: number, body: RateBookingRequest) => post<BookingDto>(`/api/rider/bookings/${id}/rating`, body),
+  shareLocation: (id: number, body: RiderLocationRequest) =>
+    post<RiderLocationAckDto>(`/api/rider/bookings/${id}/location`, body),
+  stopSharingLocation: (id: number) => del(`/api/rider/bookings/${id}/location`),
   sos: (bookingId: number | null, note?: string) =>
     post<SosResultDto>('/api/rider/sos', { bookingId, latitude: null, longitude: null, note: note ?? null }),
 };
@@ -113,6 +128,9 @@ export const adminApi = {
   updateRules: (routeId: number, body: UpdateRouteRulesRequest) => put<RouteDto>(`/api/admin/routes/${routeId}/rules`, body),
   resequence: (routeId: number, body: ResequenceRequest) => put<RouteDto>(`/api/admin/routes/${routeId}/stops`, body),
   compliance: () => get<ComplianceItemDto[]>('/api/admin/compliance'),
+  stops: () => get<PickupPointDto[]>('/api/admin/stops'),
+  createStop: (body: SavePickupPointRequest) => post<PickupPointDto>('/api/admin/stops', body),
+  updateStop: (id: number, body: SavePickupPointRequest) => put<PickupPointDto>(`/api/admin/stops/${id}`, body),
   audit: (limit = 50) => get<AuditLogDto[]>('/api/admin/audit', { limit }),
   resetDemo: () => post<{ message: string }>('/api/admin/demo/reset'),
   billing: (period?: string) => get<BillingSummaryDto>('/api/billing/summary', period ? { period } : undefined),

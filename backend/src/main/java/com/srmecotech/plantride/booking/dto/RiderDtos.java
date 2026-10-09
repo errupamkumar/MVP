@@ -2,6 +2,8 @@ package com.srmecotech.plantride.booking.dto;
 
 import com.srmecotech.plantride.booking.BookingStatus;
 import com.srmecotech.plantride.booking.RideType;
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.CabLocationDto;
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.RiderLocationDto;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.RouteRef;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.StopRef;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.VehicleRef;
@@ -100,6 +102,113 @@ public final class RiderDtos {
             List<RideOptionDto> options) {
     }
 
+    // ---------------------------------------------------------------- availability
+
+    public record AvailabilityRequest(
+            @NotNull(message = "Choose a pickup stop") Long fromStopId,
+            @NotNull(message = "Choose a drop stop") Long toStopId,
+            @Min(1) @Max(12) Integer seats) {
+    }
+
+    /** A pickup point as the rider sees it on the ground. */
+    public record SpotDto(Long id, String code, String name, String zone, String landmark) {
+    }
+
+    /**
+     * One way a ride can reach the pickup: a cab that is free now, a busy cab
+     * once it has finished its current run, or the shuttle's next timetabled run.
+     *
+     * @param kind       CAB or SHUTTLE (the shuttle is walk-up, never booked)
+     * @param inMinutes  minutes until it can be at the pickup
+     * @param distanceKm road distance from where the vehicle is now, when known
+     */
+    public record NextRideDto(
+            String kind,
+            String vehicleCode,
+            String registrationNo,
+            String driverName,
+            int inMinutes,
+            LocalDateTime arrivesAt,
+            Double distanceKm,
+            boolean availableNow,
+            String note) {
+    }
+
+    /**
+     * A vehicle on duty, nearest first. Plant Ride is an internal service, so
+     * riders see the driver and phone of every cab that could come for them.
+     *
+     * @param status             FREE, ON_TRIP, FULL, SHUTTLE, OFF_ROAD, BLOCKED or UNAVAILABLE
+     * @param canTakeYou         the engine would assign it to this ride now
+     * @param etaMinutes         to the pickup, when it can take the rider now
+     * @param availableInMinutes when a busy cab could be at the pickup, if it will be at all
+     */
+    public record NearbyCabDto(
+            Long vehicleId,
+            String vehicleCode,
+            String registrationNo,
+            String vehicleType,
+            String fleet,
+            String driverName,
+            String driverPhone,
+            String status,
+            String statusLabel,
+            String at,
+            Double distanceKm,
+            int seatsTaken,
+            int capacity,
+            boolean canTakeYou,
+            Integer etaMinutes,
+            Integer availableInMinutes,
+            String note) {
+    }
+
+    /** An admin-configured pickup point within walking distance where a ride comes sooner. */
+    public record AlternativeSpotDto(
+            SpotDto stop,
+            RouteRef route,
+            int walkMetres,
+            int walkMinutes,
+            int rideInMinutes,
+            int readyInMinutes,
+            String vehicleCode,
+            boolean availableNow,
+            boolean sooner,
+            String note) {
+    }
+
+    /**
+     * How a waiting request is being searched. Durations are in seconds from
+     * {@code checkedAt}, so the app can count down with its own clock whatever
+     * the phone's time zone.
+     */
+    public record SearchStatusDto(
+            Long bookingId,
+            String bookingCode,
+            long searchingForSeconds,
+            Long lastCheckedSecondsAgo,
+            long nextCheckInSeconds,
+            long checkEverySeconds,
+            long expiresInSeconds,
+            LocalDateTime expiresAt,
+            String lastResult) {
+    }
+
+    public record AvailabilityDto(
+            LocalDateTime checkedAt,
+            RouteRef route,
+            SpotDto pickup,
+            SpotDto drop,
+            int vehiclesOnDuty,
+            boolean availableNow,
+            String summary,
+            NextRideDto nextAtPickup,
+            List<NextRideDto> upcomingAtPickup,
+            List<NearbyCabDto> nearbyCabs,
+            List<AlternativeSpotDto> alternativeSpots,
+            SearchStatusDto search) {
+    }
+
     // ---------------------------------------------------------------- booking
 
     public record CreateBookingRequest(
@@ -115,11 +224,12 @@ public final class RiderDtos {
             boolean forGuest) {
     }
 
-    public record DriverContactDto(String name, String phone) {
+    /** @param fleet "LHS own fleet" or the vendor's name */
+    public record DriverContactDto(String name, String phone, String fleet) {
     }
 
-    public record ProgressStopDto(int seq, String stopName, boolean pickup, boolean drop,
-                                  /** PASSED, HERE, NEXT or AHEAD. */ String state) {
+    public record ProgressStopDto(int seq, String stopName, double latitude, double longitude, boolean pickup,
+                                  boolean drop, /** PASSED, HERE, NEXT or AHEAD. */ String state) {
     }
 
     public record RideProgressDto(
@@ -161,6 +271,10 @@ public final class RiderDtos {
             String trackingUrl,
             VehicleRef vehicle,
             DriverContactDto driver,
+            /** Where the cab is right now, measured to the pickup (or the drop once on board). */
+            CabLocationDto cabLocation,
+            /** What the rider is sharing with the driver while the cab is on its way; null when nothing is. */
+            RiderLocationDto myLocation,
             String tripCode,
             Integer promisedEtaMinutes,
             LocalDateTime promisedPickupAt,

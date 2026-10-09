@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ComponentProps, useState } from 'react';
 import { Linking, Platform, Pressable, Share, Text, TextInput, View } from 'react-native';
 
 import { trackingLink } from '@/api/client';
-import type { BookingDto, RatingTag } from '@/api/types';
+import type { AlternativeSpotDto, BookingDto, RatingTag } from '@/api/types';
+import { LiveMap, type MapMarker, type MapStop } from '@/components/LiveMap';
 import { StatusPill } from '@/components/StatusPill';
 import {
   Banner,
@@ -20,13 +21,17 @@ import {
   LoadingState,
   Muted,
   OtpDigits,
+  Pill,
   Row,
   Screen,
   SectionTitle,
 } from '@/components/ui';
-import { useBooking, useCancelBooking, useRateBooking, useRiderSos } from '@/hooks/queries';
+import { NearbyCabs, NearbySpots, SearchingCard, SearchProgress, WhenRideComes } from '@/features/availability/AvailabilityPanels';
+import { useBookingDraft } from '@/features/booking/BookingDraft';
+import { useBooking, useBookingAvailability, useCancelBooking, useRateBooking, useRiderSos, useSearchAgain } from '@/hooks/queries';
+import { useRiderLocationSharing } from '@/hooks/useRiderLocationSharing';
 import { confirmAction, showMessage } from '@/lib/dialogs';
-import { dayAndTime, km, minutes, rupees, time } from '@/lib/format';
+import { ago, dayAndTime, distance, km, minutes, rupees, time } from '@/lib/format';
 import { colors } from '@/lib/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -103,14 +108,7 @@ function BookingView({ b, refreshing, onRefresh }: { b: BookingDto; refreshing: 
       {b.status === 'ASSIGNED' || b.status === 'ONBOARD' ? <Eta b={b} /> : null}
       {b.status === 'ASSIGNED' || b.status === 'ONBOARD' ? <ProgressSteps b={b} /> : null}
 
-      {b.status === 'REQUESTED' ? (
-        <Banner
-          tone="amber"
-          icon="hourglass"
-          title="Every cab is busy or full"
-          message="You are in the queue and get the next free cab automatically. The transport desk can see your request."
-        />
-      ) : null}
+      {b.status === 'REQUESTED' ? <WaitingForCab b={b} /> : null}
       {b.status === 'PENDING_APPROVAL' ? (
         <Banner tone="amber" icon="shield-checkmark" title="Waiting for approval" message="Exclusive rides are released by the transport desk or your HOD." />
       ) : null}
@@ -137,6 +135,8 @@ function BookingView({ b, refreshing, onRefresh }: { b: BookingDto; refreshing: 
         </Card>
       ) : null}
 
+      {live && b.cabLocation ? <CabOnMap b={b} /> : null}
+      {b.status === 'ASSIGNED' && b.driver ? <ShareMyLocation b={b} /> : null}
       {b.vehicle && live ? <VehicleCard b={b} /> : null}
 
       {b.status === 'ASSIGNED' && p.stage !== 'AT_PICKUP' && b.otp ? (
@@ -227,7 +227,11 @@ function Eta({ b }: { b: BookingDto }) {
               : `Arriving at ${b.fromStop.name} in`}
         </Muted>
         <Text className="text-4xl font-bold text-ink">{eta < 1 ? 'Any moment' : minutes(eta)}</Text>
-        {p.vehicleAt ? <Muted>Last seen at {p.vehicleAt}</Muted> : null}
+        {b.cabLocation?.live ? (
+          <Muted>Live GPS{b.cabLocation.nearStopName ? ` · near ${b.cabLocation.nearStopName}` : ''}</Muted>
+        ) : p.vehicleAt ? (
+          <Muted>Last seen at {p.vehicleAt}</Muted>
+        ) : null}
       </View>
       <View className="h-14 w-14 items-center justify-center rounded-full bg-accent-soft">
         <Ionicons name={onTrip ? 'navigate' : 'car'} size={26} color={colors.accent} />
@@ -258,6 +262,70 @@ function ProgressSteps({ b }: { b: BookingDto }) {
   );
 }
 
+/**
+ * A request no cab could take yet: live search progress with Search again now,
+ * when a ride can reach the pickup, nearby pickup points (rebook from one),
+ * and every cab on duty with its driver.
+ */
+function WaitingForCab({ b }: { b: BookingDto }) {
+  const router = useRouter();
+  const { update } = useBookingDraft();
+  const availability = useBookingAvailability(b.id, true);
+  const searchAgain = useSearchAgain();
+  const cancel = useCancelBooking();
+  const [openedAt] = useState(() => Date.now());
+
+  const onSearchAgain = () => searchAgain.mutate(b.id, { onSettled: () => void availability.refetch() });
+
+  const rebook = async (s: AlternativeSpotDto) => {
+    const ok = await confirmAction(
+      `Rebook from ${s.stop.name}?`,
+      `Your request from ${b.fromStop.name} is cancelled, and you choose a ride from ${s.stop.name} (${s.walkMinutes} min walk).`,
+      'Rebook',
+    );
+    if (!ok) return;
+    cancel.mutate(
+      { id: b.id, reason: `Rebooked from ${s.stop.name}` },
+      {
+        onSuccess: () => {
+          update({
+            from: { id: s.stop.id, name: s.stop.name },
+            to: { id: b.toStop.id, name: b.toStop.name },
+            seats: b.seats,
+            when: { kind: 'now' },
+            riderName: b.riderName,
+            riderPhone: b.riderPhone,
+            riderEmail: b.riderEmail ?? '',
+            forGuest: b.forGuest,
+          });
+          router.replace('/rider/options');
+        },
+      },
+    );
+  };
+
+  if (!availability.data) {
+    return availability.isError ? (
+      <View className="mt-4"><ErrorBanner error={availability.error} /></View>
+    ) : (
+      <SearchingCard startedAt={openedAt} pickupName={b.fromStop.name} />
+    );
+  }
+  const a = availability.data;
+  return (
+    <View>
+      {a.search ? (
+        <SearchProgress search={a.search} receivedAt={availability.dataUpdatedAt} onSearchAgain={onSearchAgain} busy={searchAgain.isPending} />
+      ) : null}
+      {searchAgain.isError ? <View className="mt-3"><ErrorBanner error={searchAgain.error} /></View> : null}
+      {cancel.isError ? <View className="mt-3"><ErrorBanner error={cancel.error} /></View> : null}
+      <WhenRideComes a={a} />
+      <NearbySpots a={a} actionLabel="Rebook from here" onUse={rebook} busy={cancel.isPending} />
+      <NearbyCabs a={a} />
+    </View>
+  );
+}
+
 function VehicleCard({ b }: { b: BookingDto }) {
   return (
     <Card className="mt-3">
@@ -265,7 +333,9 @@ function VehicleCard({ b }: { b: BookingDto }) {
         <View>
           <Muted>Vehicle number</Muted>
           <Text className="text-xl font-bold text-ink">{b.vehicle?.registrationNo}</Text>
-          <Muted>Cab {b.vehicle?.code}</Muted>
+          <Muted>
+            {b.vehicle?.vehicleType === 'SHUTTLE' ? 'Shuttle' : 'Cab'} {b.vehicle?.code} · {b.vehicle?.seatCapacity} seats
+          </Muted>
         </View>
         <View className="h-12 w-12 items-center justify-center rounded-full bg-ink">
           <Ionicons name="car" size={22} color={colors.white} />
@@ -277,6 +347,7 @@ function VehicleCard({ b }: { b: BookingDto }) {
             <Muted>Driver</Muted>
             <Text className="text-base font-semibold text-ink">{b.driver.name}</Text>
             <Muted>{b.driver.phone}</Muted>
+            <Muted>{b.driver.fleet}</Muted>
           </View>
           <Button
             label="Call"
@@ -290,6 +361,146 @@ function VehicleCard({ b }: { b: BookingDto }) {
       {b.promisedPickupAt && b.status === 'ASSIGNED' ? (
         <Muted className="mt-2">Promised pickup by {time(b.promisedPickupAt)}</Muted>
       ) : null}
+    </Card>
+  );
+}
+
+/** Where the cab is right now, on a map of this run's stops, with the rider's own shared position. */
+function CabOnMap({ b }: { b: BookingDto }) {
+  const cab = b.cabLocation;
+  if (!cab) return null;
+  const p = b.progress;
+  const onBoard = b.status === 'ONBOARD';
+  const stops: MapStop[] = p.stops.map((s) => ({
+    key: String(s.seq),
+    name: s.stopName,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    tone: s.pickup && !onBoard ? 'highlight' : s.drop ? 'target' : s.state === 'PASSED' ? 'passed' : 'normal',
+  }));
+  const markers: MapMarker[] = [];
+  if (b.myLocation && !onBoard) {
+    markers.push({
+      key: 'me',
+      kind: 'rider',
+      label: 'You',
+      latitude: b.myLocation.latitude,
+      longitude: b.myLocation.longitude,
+      live: b.myLocation.live,
+      accuracyM: b.myLocation.accuracyM,
+    });
+  }
+  markers.push({ key: 'cab', kind: 'cab', label: cab.vehicleCode, latitude: cab.latitude, longitude: cab.longitude, live: cab.live, accuracyM: cab.accuracyM });
+  // Fit the view to the cab and where it is heading for this rider: their pickup (and them), or their drop.
+  const target = p.stops.find((s) => (onBoard ? s.drop : s.pickup));
+  const focus = [...markers.map((m) => m.key), ...(target ? [String(target.seq)] : [])];
+
+  const headline =
+    p.stage === 'AT_PICKUP'
+      ? `${cab.vehicleCode} is at ${b.fromStop.name}`
+      : cab.live && cab.metresToStop != null && cab.towardsStopName
+        ? `${cab.vehicleCode} is ${distance(cab.metresToStop)} from ${cab.towardsStopName}`
+        : `${cab.vehicleCode} was last seen${cab.nearStopName ? ` near ${cab.nearStopName}` : ''}`;
+  const detail = cab.live
+    ? [
+        cab.speedKmh == null ? null : cab.speedKmh >= 3 ? `Moving at ${Math.round(cab.speedKmh)} km/h` : 'Stopped',
+        cab.nearStopName ? `near ${cab.nearStopName}` : null,
+        `updated ${ago(cab.secondsAgo)}`,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : `The driver's GPS is not live${cab.secondsAgo != null ? ` (last update ${ago(cab.secondsAgo)})` : ''}. Times above follow the route timetable.`;
+  return (
+    <Card className="mt-3">
+      <Row className="justify-between">
+        <Eyebrow>Where your cab is</Eyebrow>
+        <Pill label={cab.live ? 'Live' : 'GPS not live'} tone={cab.live ? 'teal' : 'neutral'} />
+      </Row>
+      <Text className="mt-1 text-lg font-bold text-ink">{headline}</Text>
+      <Muted>{detail}</Muted>
+      <View className="mt-3">
+        <LiveMap stops={stops} markers={markers} focus={focus} />
+      </View>
+      {b.driver ? (
+        <Muted className="mt-2">
+          {b.driver.name} · {b.vehicle?.registrationNo} · straight-line distances
+        </Muted>
+      ) : null}
+    </Card>
+  );
+}
+
+/** The rider's own position, shared with the driver coming for them until they board. */
+function ShareMyLocation({ b }: { b: BookingDto }) {
+  const sharing = useRiderLocationSharing(b.id, true);
+  const driver = b.driver?.name ?? 'your driver';
+  const mine = b.myLocation;
+  const ack = sharing.lastAck;
+
+  if (sharing.stopped) {
+    return (
+      <Card className="mt-3">
+        <Row>
+          <Ionicons name="location-outline" size={22} color={colors.ink3} />
+          <View className="ml-2 flex-1">
+            <Text className="text-base font-bold text-ink">Location sharing is off</Text>
+            <Muted>
+              {driver} looks for you at the {b.fromStop.name} pickup point.
+            </Muted>
+          </View>
+        </Row>
+        <Button label="Share my location" icon="location" size="md" variant="secondary" onPress={sharing.resume} className="mt-3" />
+      </Card>
+    );
+  }
+  if (sharing.permission === 'denied' || sharing.permission === 'unsupported') {
+    return (
+      <View className="mt-3">
+        <Banner
+          tone="amber"
+          icon="location"
+          title="Your location is not shared"
+          message={
+            sharing.permission === 'denied'
+              ? `Allow location for Plant Ride so ${driver} can find you at ${b.fromStop.name}.`
+              : `This device cannot share its location. ${driver} looks for you at ${b.fromStop.name}.`
+          }
+        />
+      </View>
+    );
+  }
+  if (ack?.outsideServiceArea) {
+    return (
+      <View className="mt-3">
+        <Banner tone="amber" icon="locate" title="Your location is not shared" message={ack.message ?? undefined} />
+      </View>
+    );
+  }
+
+  const metres = mine?.metresToPickup ?? ack?.metresToPickup ?? null;
+  const atPickup = mine?.atPickup ?? ack?.atPickup ?? false;
+  const shared = metres != null;
+  return (
+    <Card className="mt-3">
+      <Row>
+        <View className={`h-10 w-10 items-center justify-center rounded-full ${shared ? 'bg-teal-soft' : 'bg-mist'}`}>
+          <Ionicons name="location" size={20} color={shared ? colors.teal : colors.ink3} />
+        </View>
+        <View className="ml-3 flex-1">
+          <Text className="text-base font-bold text-ink">
+            {shared ? `Sharing your location with ${ack?.sharedWith ?? driver}` : 'Finding your location…'}
+          </Text>
+          <Muted>
+            {!shared
+              ? `So ${driver} can find you at ${b.fromStop.name}.`
+              : `${atPickup ? `You are at the ${b.fromStop.name} pickup point` : `You are ${distance(metres)} from ${b.fromStop.name}`}${
+                  mine ? ` · updated ${ago(mine.secondsAgo)}` : ''
+                }`}
+          </Muted>
+        </View>
+      </Row>
+      <Muted className="mt-2">Only your driver sees it, and only until you board.</Muted>
+      <Button label="Stop sharing" icon="eye-off" size="sm" variant="ghost" onPress={sharing.stop} className="mt-1 self-start" />
     </Card>
   );
 }

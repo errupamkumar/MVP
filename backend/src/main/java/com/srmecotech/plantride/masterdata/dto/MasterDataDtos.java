@@ -37,11 +37,11 @@ public final class MasterDataDtos {
         }
     }
 
-    public record StopDto(Long id, String code, String name, String zone, double latitude, double longitude,
-                          int geofenceM) {
+    public record StopDto(Long id, String code, String name, String zone, String landmark, double latitude,
+                          double longitude, int geofenceM) {
         public static StopDto of(Stop s) {
-            return new StopDto(s.getId(), s.getCode(), s.getName(), s.getZone(), s.getLatitude(), s.getLongitude(),
-                    s.getGeofenceM());
+            return new StopDto(s.getId(), s.getCode(), s.getName(), s.getZone(), s.getLandmark(), s.getLatitude(),
+                    s.getLongitude(), s.getGeofenceM());
         }
     }
 

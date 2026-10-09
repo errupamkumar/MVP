@@ -68,6 +68,9 @@ public class DispatchService {
     private final TransactionTemplate requiresNew;
     private final Clock clock;
 
+    /** When the last sweep started, so a waiting rider can see when the next automatic check is due. */
+    private volatile LocalDateTime lastSweepAt;
+
     public DispatchService(RouteRepository routeRepository, RouteResolver routeResolver,
                            VehicleRepository vehicleRepository, TripRepository tripRepository,
                            BookingRepository bookingRepository, MatchingEngine engine,
@@ -148,6 +151,7 @@ public class DispatchService {
      */
     public int dispatchPending() {
         LocalDateTime now = LocalDateTime.now(clock);
+        lastSweepAt = now;
         int lead = settings.getInt(SettingsService.DISPATCH_LEAD_MINUTES, 20);
         int expiryMinutes = settings.getInt(SettingsService.REQUEST_EXPIRY_MINUTES, 90);
         requiresNew.executeWithoutResult(status -> {
@@ -231,6 +235,10 @@ public class DispatchService {
                         + " · at " + booking.getFromStop().getName() + " in about " + Math.max(1, candidate.etaMinutes())
                         + " min · boarding OTP " + booking.getOtp());
         return true;
+    }
+
+    public LocalDateTime lastSweepAt() {
+        return lastSweepAt;
     }
 
     /**

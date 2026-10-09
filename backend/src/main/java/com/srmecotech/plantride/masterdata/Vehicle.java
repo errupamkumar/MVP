@@ -15,6 +15,7 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -22,8 +23,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * {@code @DynamicUpdate}: GPS pings move the live position with a bulk
+ * update that skips the version check, so a ping never makes an "Arrived"
+ * tap fail as stale. Writing only changed columns keeps an unrelated save
+ * (arrival, sign-off) from putting an older position back.
+ */
 @Entity
 @Table(name = "vehicle")
+@DynamicUpdate
 @Getter
 @Setter
 @NoArgsConstructor
@@ -94,6 +102,14 @@ public class Vehicle {
     @Column(name = "last_speed_kmh")
     private Double lastSpeedKmh;
 
+    @Column(name = "last_accuracy_m")
+    private Integer lastAccuracyM;
+
+    /** Direction of travel in degrees from north, when the phone reports one. */
+    @Column(name = "last_heading")
+    private Integer lastHeading;
+
+    /** Set only by GPS pings ({@link VehicleRepository#moveTo}); an arrival tap moves the position but not this. */
     @Column(name = "last_ping_at")
     private LocalDateTime lastPingAt;
 

@@ -64,6 +64,8 @@ export interface StopDto {
   code: string;
   name: string;
   zone: string;
+  /** Where exactly to wait, e.g. "Security cabin, visitor lane". */
+  landmark: string | null;
   latitude: number;
   longitude: number;
   geofenceM: number;
@@ -108,6 +110,66 @@ export interface DestinationDto {
   routeName: string;
   rideMinutes: number;
   rideKm: number;
+}
+
+// ------------------------------------------------------------------ live location
+
+/**
+ * Where a cab is, from its driver's phone. When the phone has not reported
+ * for two minutes, `live` is false and the position is the last fix or the
+ * last stop the driver confirmed.
+ */
+export interface CabLocationDto {
+  vehicleCode: string;
+  latitude: number;
+  longitude: number;
+  accuracyM: number | null;
+  speedKmh: number | null;
+  /** Degrees from north, when the phone reports one. */
+  heading: number | null;
+  updatedAt: string | null;
+  /** Since the phone last reported; null if it never has. */
+  secondsAgo: number | null;
+  live: boolean;
+  /** Nearest stop on the route within 300 m. */
+  nearStopName: string | null;
+  /** The stop metresToStop is measured to: the rider's pickup (drop once on board), or the driver's next stop. */
+  towardsStopName: string | null;
+  metresToStop: number | null;
+}
+
+/** A waiting rider's position: shared only while their cab is on its way, deleted at boarding. */
+export interface RiderLocationDto {
+  latitude: number;
+  longitude: number;
+  accuracyM: number | null;
+  updatedAt: string;
+  secondsAgo: number;
+  live: boolean;
+  pickupName: string;
+  metresToPickup: number;
+  atPickup: boolean;
+  metresFromCab: number | null;
+}
+
+export interface RiderLocationRequest {
+  latitude: number;
+  longitude: number;
+  accuracyM: number | null;
+  /** How old the fix already is on the phone (independent of the phone's clock). */
+  ageSeconds: number;
+}
+
+export interface RiderLocationAckDto {
+  /** False when the fix was ignored because it is outside the plant area. */
+  shared: boolean;
+  /** e.g. "S. Kumar · C-12" */
+  sharedWith: string;
+  pickupName: string;
+  metresToPickup: number | null;
+  atPickup: boolean;
+  outsideServiceArea: boolean;
+  message: string | null;
 }
 
 export type DocState = 'VALID' | 'EXPIRING' | 'EXPIRED';
@@ -216,6 +278,97 @@ export interface RideOptionsResponse {
   options: RideOptionDto[];
 }
 
+// ---------------------------------------------------------------- availability
+
+export interface AvailabilityRequest {
+  fromStopId: number;
+  toStopId: number;
+  seats: number;
+}
+
+export interface SpotDto {
+  id: number;
+  code: string;
+  name: string;
+  zone: string;
+  landmark: string | null;
+}
+
+export interface NextRideDto {
+  kind: 'CAB' | 'SHUTTLE';
+  vehicleCode: string;
+  registrationNo: string | null;
+  driverName: string | null;
+  inMinutes: number;
+  arrivesAt: string;
+  distanceKm: number | null;
+  availableNow: boolean;
+  note: string | null;
+}
+
+export type NearbyCabStatus = 'FREE' | 'ON_TRIP' | 'FULL' | 'SHUTTLE' | 'OFF_ROAD' | 'BLOCKED' | 'UNAVAILABLE';
+
+export interface NearbyCabDto {
+  vehicleId: number;
+  vehicleCode: string;
+  registrationNo: string;
+  vehicleType: string;
+  fleet: string;
+  driverName: string;
+  driverPhone: string;
+  status: NearbyCabStatus;
+  statusLabel: string;
+  at: string | null;
+  distanceKm: number | null;
+  seatsTaken: number;
+  capacity: number;
+  canTakeYou: boolean;
+  etaMinutes: number | null;
+  availableInMinutes: number | null;
+  note: string | null;
+}
+
+export interface AlternativeSpotDto {
+  stop: SpotDto;
+  route: RouteRef;
+  walkMetres: number;
+  walkMinutes: number;
+  rideInMinutes: number;
+  readyInMinutes: number;
+  vehicleCode: string;
+  availableNow: boolean;
+  sooner: boolean;
+  note: string;
+}
+
+/** Durations are seconds as of checkedAt; the app counts on from when it received them. */
+export interface SearchStatusDto {
+  bookingId: number;
+  bookingCode: string;
+  searchingForSeconds: number;
+  lastCheckedSecondsAgo: number | null;
+  nextCheckInSeconds: number;
+  checkEverySeconds: number;
+  expiresInSeconds: number;
+  expiresAt: string;
+  lastResult: string | null;
+}
+
+export interface AvailabilityDto {
+  checkedAt: string;
+  route: RouteRef;
+  pickup: SpotDto;
+  drop: SpotDto;
+  vehiclesOnDuty: number;
+  availableNow: boolean;
+  summary: string;
+  nextAtPickup: NextRideDto | null;
+  upcomingAtPickup: NextRideDto[];
+  nearbyCabs: NearbyCabDto[];
+  alternativeSpots: AlternativeSpotDto[];
+  search: SearchStatusDto | null;
+}
+
 export interface CreateBookingRequest {
   fromStopId: number;
   toStopId: number;
@@ -241,6 +394,8 @@ export type ProgressStage =
 export interface ProgressStopDto {
   seq: number;
   stopName: string;
+  latitude: number;
+  longitude: number;
   pickup: boolean;
   drop: boolean;
   state: 'PASSED' | 'HERE' | 'NEXT' | 'AHEAD';
@@ -282,7 +437,12 @@ export interface BookingDto {
   trackingToken: string;
   trackingUrl: string;
   vehicle: VehicleRef | null;
-  driver: { name: string; phone: string } | null;
+  /** fleet: "LHS own fleet" or the vendor's name. */
+  driver: { name: string; phone: string; fleet: string } | null;
+  /** Where the cab is now, measured to the pickup (or the drop once on board). */
+  cabLocation: CabLocationDto | null;
+  /** What this rider is sharing with the driver while the cab is on its way. */
+  myLocation: RiderLocationDto | null;
   tripCode: string | null;
   promisedEtaMinutes: number | null;
   promisedPickupAt: string | null;
@@ -421,12 +581,16 @@ export interface QueueRiderDto {
   toStopName: string;
   noShowAllowedInSeconds: number | null;
   otpLocked: boolean;
+  /** Where a rider waiting for this cab is, if they share it; null once on board. */
+  location: RiderLocationDto | null;
 }
 
 export interface QueueStopDto {
   seq: number;
   stopId: number;
   stopName: string;
+  latitude: number;
+  longitude: number;
   state: 'DONE' | 'CURRENT' | 'NEXT' | 'UPCOMING';
   etaMinutes: number;
   summary: string;
@@ -449,6 +613,8 @@ export interface TripQueueDto {
   canArriveNext: boolean;
   arriveBlockedReason: string | null;
   speedLimitKmh: number;
+  /** Where the cab is, measured to the next stop. */
+  cab: CabLocationDto | null;
   stops: QueueStopDto[];
 }
 
@@ -461,6 +627,10 @@ export interface LocationPingRequest {
   latitude: number;
   longitude: number;
   speedKmh: number | null;
+  accuracyM: number | null;
+  heading: number | null;
+  /** How old the fix already is on the phone; preferred over recordedAt (no clock or time-zone drift). */
+  ageSeconds: number | null;
   recordedAt: string | null;
 }
 
@@ -468,6 +638,8 @@ export interface LocationAckDto {
   overspeed: boolean;
   speedLimitKmh: number;
   autoArrivedAt: string | null;
+  /** The fix was ignored: it is outside the plant (GPS glitch, or a phone off site). */
+  outsideServiceArea: boolean;
 }
 
 export type IssueType = 'BREAKDOWN' | 'ACCIDENT' | 'DELAY' | 'FUEL' | 'OTHER';
@@ -635,6 +807,31 @@ export interface ComplianceItemDto {
   state: DocState;
   label: string;
   blocksDispatch: boolean;
+}
+
+export interface PickupPointDto {
+  id: number;
+  code: string;
+  name: string;
+  zone: string;
+  landmark: string | null;
+  latitude: number;
+  longitude: number;
+  geofenceM: number;
+  active: boolean;
+  routes: string[];
+  liveBookings: number;
+}
+
+export interface SavePickupPointRequest {
+  code: string | null;
+  name: string;
+  zone: string;
+  landmark: string | null;
+  latitude: number;
+  longitude: number;
+  geofenceM: number;
+  active: boolean | null;
 }
 
 export interface AuditLogDto {

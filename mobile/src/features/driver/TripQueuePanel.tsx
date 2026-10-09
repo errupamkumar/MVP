@@ -3,14 +3,18 @@ import { useState } from 'react';
 import { Linking, Text, TextInput, View } from 'react-native';
 
 import type { DriverProfileDto, QueueRiderDto, QueueStopDto, TripQueueDto } from '@/api/types';
+import { LiveMap, type MapMarker, type MapStop } from '@/components/LiveMap';
 import { Banner, Button, Card, EmptyState, ErrorBanner, Eyebrow, Muted, Pill, Row, SectionTitle } from '@/components/ui';
 import { useArrive, useBoardRider, useNoShow, useStops } from '@/hooks/queries';
 import type { DriverLocationState } from '@/hooks/useDriverLocation';
 import { useNow } from '@/hooks/useNow';
-import { hoursMinutes, minutes } from '@/lib/format';
+import { ago, distance, hoursMinutes, minutes } from '@/lib/format';
 import { colors } from '@/lib/theme';
 
-/** The screen a driver lives in all day: pickups in route order, OTP boarding, arrival, no-show. */
+/**
+ * The screen a driver lives in all day: pickups in route order, OTP boarding,
+ * arrival, no-show, and a live map of the cab and the riders waiting for it.
+ */
 export function TripQueuePanel({
   trip,
   notice,
@@ -48,6 +52,7 @@ export function TripQueuePanel({
             <Stat label="Duty" value={`${hoursMinutes(duty.minutesOnDuty)} of ${hoursMinutes(duty.maxDutyMinutes)}`} />
           </Row>
         ) : null}
+        <GpsStatus location={location} />
       </Card>
 
       {location.lastAck?.overspeed ? (
@@ -56,6 +61,14 @@ export function TripQueuePanel({
       {location.permission === 'denied' ? (
         <Banner tone="amber" icon="location" title="Location is off" message="Riders see your cab move only when location is allowed. Tap Arrived at each stop." />
       ) : null}
+      {location.lastAck?.outsideServiceArea ? (
+        <Banner
+          tone="amber"
+          icon="locate"
+          title="You are outside the plant area"
+          message="Your phone's position is far from every pickup point, so riders do not see it. Tap Arrived at each stop."
+        />
+      ) : null}
 
       {!trip ? (
         <EmptyState icon="hourglass-outline" title="No pickups yet" message={notice ?? 'New riders appear here automatically, in route order.'} />
@@ -63,6 +76,36 @@ export function TripQueuePanel({
         <QueueBody trip={trip} fetchedAt={fetchedAt} />
       )}
     </View>
+  );
+}
+
+/** Is the cab's position reaching riders? One line under the header. */
+function GpsStatus({ location }: { location: DriverLocationState }) {
+  const now = useNow(location.lastSentAt != null, 5_000);
+  const { permission, lastAck, lastSentAt } = location;
+  let tone: 'live' | 'warn' | 'off' = 'warn';
+  let text: string;
+  if (permission === 'unsupported') {
+    tone = 'off';
+    text = 'This device cannot share its location';
+  } else if (permission === 'denied') {
+    tone = 'off';
+    text = 'Location off · riders see only the last stop you reached';
+  } else if (lastAck?.outsideServiceArea) {
+    text = 'Outside the plant area · position not shared';
+  } else if (lastSentAt == null) {
+    text = 'Finding your location…';
+  } else {
+    const seconds = Math.max(0, Math.round((now - lastSentAt) / 1000));
+    tone = seconds <= 120 ? 'live' : 'warn';
+    text = `Sharing your location with riders · sent ${ago(seconds)}`;
+  }
+  const dot = { live: 'bg-teal', warn: 'bg-amber', off: 'bg-danger' }[tone];
+  return (
+    <Row className="mt-3 border-t border-ink-2 pt-3">
+      <View className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+      <Text className="ml-2 flex-1 text-sm text-line">{text}</Text>
+    </Row>
   );
 }
 
@@ -122,6 +165,9 @@ function QueueBody({ trip, fetchedAt }: { trip: TripQueueDto; fetchedAt: number 
         </View>
       ) : null}
 
+      <TripMap trip={trip} />
+      <WaitingRiders trip={trip} />
+
       <SectionTitle title="Stops in route order" />
       <Card className="p-2">
         {trip.stops.map((s, i) => (
@@ -151,6 +197,135 @@ function QueueBody({ trip, fetchedAt }: { trip: TripQueueDto; fetchedAt: number 
       </Card>
       <Muted className="mt-2 text-center">The sequence comes from the route master, not the driver.</Muted>
     </View>
+  );
+}
+
+/** The cab against this trip's stops, with every waiting rider who shares their location. */
+function TripMap({ trip }: { trip: TripQueueDto }) {
+  const waiting = trip.stops.flatMap((s) => s.pickups).filter((r) => r.status === 'ASSIGNED');
+  const cab = trip.cab;
+  const stops: MapStop[] = trip.stops.map((s) => ({
+    key: String(s.seq),
+    name: s.stopName,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    tone: s.state === 'DONE' ? 'passed' : s.state === 'NEXT' ? 'highlight' : s.state === 'CURRENT' ? 'target' : 'normal',
+  }));
+  const markers: MapMarker[] = [];
+  for (const r of waiting) {
+    if (r.location) {
+      markers.push({
+        key: `rider-${r.bookingId}`,
+        kind: 'rider',
+        label: r.riderName,
+        latitude: r.location.latitude,
+        longitude: r.location.longitude,
+        live: r.location.live,
+        accuracyM: r.location.accuracyM,
+      });
+    }
+  }
+  const sharing = markers.length;
+  if (cab) {
+    markers.push({ key: 'cab', kind: 'cab', label: cab.vehicleCode, latitude: cab.latitude, longitude: cab.longitude, live: cab.live, accuracyM: cab.accuracyM });
+  }
+  // Fit the view to what the driver acts on next: the cab, the riders and the next stop.
+  const focus = [
+    ...markers.map((m) => m.key),
+    ...trip.stops.filter((s) => s.state === 'NEXT' || s.state === 'CURRENT').map((s) => String(s.seq)),
+  ];
+  const cabLine = !cab
+    ? 'Waiting for your first GPS fix.'
+    : cab.live
+      ? `${cab.vehicleCode}${cab.towardsStopName && cab.metresToStop != null ? ` · ${distance(cab.metresToStop)} to ${cab.towardsStopName}` : ''} · updated ${ago(cab.secondsAgo)}`
+      : `GPS not live · shown at the last known position${cab.nearStopName ? ` near ${cab.nearStopName}` : ''}`;
+  return (
+    <>
+      <SectionTitle title="Live map" />
+      <Card className="p-2">
+        <LiveMap stops={stops} markers={markers} focus={focus} />
+        <Muted className="mx-1 mt-2">{cabLine}</Muted>
+        {waiting.length > 0 ? (
+          <Muted className="mx-1">
+            {sharing} of {waiting.length} waiting {waiting.length === 1 ? 'rider shares' : 'riders share'} their location
+          </Muted>
+        ) : null}
+      </Card>
+    </>
+  );
+}
+
+/** Riders the cab is on its way to (not yet at their stop): who they are, where they wait, and where they are now. */
+function WaitingRiders({ trip }: { trip: TripQueueDto }) {
+  const waiting = trip.stops
+    .filter((s) => s.state === 'NEXT' || s.state === 'UPCOMING')
+    .flatMap((s) => s.pickups.filter((p) => p.status === 'ASSIGNED'));
+  if (waiting.length === 0) return null;
+  return (
+    <>
+      <SectionTitle title="Riders to pick up" />
+      {waiting.map((r) => (
+        <Card key={r.bookingId} className="mb-2">
+          <Row className="justify-between">
+            <View className="flex-1 pr-2">
+              <Text className="text-lg font-bold text-ink">{r.riderName}</Text>
+              <Muted>
+                {r.personnelNo} · {r.fromStopName} → {r.toStopName}
+                {r.seats > 1 ? ` · ${r.seats} seats` : ''}
+              </Muted>
+            </View>
+            <Button
+              label="Call"
+              icon="call"
+              size="sm"
+              variant="secondary"
+              onPress={() => Linking.openURL(`tel:${r.riderPhone.replace(/\s/g, '')}`)}
+            />
+          </Row>
+          <RiderWhere rider={r} />
+        </Card>
+      ))}
+    </>
+  );
+}
+
+/** Where a waiting rider is, as their phone last reported it. */
+function RiderWhere({ rider }: { rider: QueueRiderDto }) {
+  const l = rider.location;
+  if (!l) {
+    return (
+      <Row className="mt-2">
+        <Ionicons name="location-outline" size={16} color={colors.ink3} />
+        <Muted className="ml-1.5 flex-1">Location not shared · waits at {rider.fromStopName}</Muted>
+      </Row>
+    );
+  }
+  const where = l.atPickup ? `At the ${l.pickupName} pickup point` : `${distance(l.metresToPickup)} from ${l.pickupName}`;
+  const details = [
+    l.metresFromCab != null ? `${distance(l.metresFromCab)} from you` : null,
+    `${l.live ? 'updated' : 'last seen'} ${ago(l.secondsAgo)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <Row className="mt-2">
+      <Ionicons name={l.atPickup ? 'checkmark-circle' : 'location'} size={18} color={l.live ? colors.teal : colors.ink3} />
+      <View className="ml-1.5 flex-1">
+        <Text className={`text-base font-semibold ${l.live ? 'text-teal-deep' : 'text-ink-2'}`}>{where}</Text>
+        <Muted>{details}</Muted>
+      </View>
+      {!l.atPickup ? (
+        <Button
+          label="Directions"
+          icon="navigate"
+          size="sm"
+          variant="ghost"
+          onPress={() =>
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${l.latitude},${l.longitude}&travelmode=driving`)
+          }
+        />
+      ) : null}
+    </Row>
   );
 }
 
@@ -218,6 +393,7 @@ function RiderPickup({ tripId, rider, fetchedAt }: { tripId: number; rider: Queu
           onPress={() => Linking.openURL(`tel:${rider.riderPhone.replace(/\s/g, '')}`)}
         />
       </Row>
+      <RiderWhere rider={rider} />
 
       {rider.otpLocked ? (
         <Banner tone="danger" icon="lock-closed" title="Boarding locked" message="Too many wrong codes. Call the transport desk to verify the rider." />

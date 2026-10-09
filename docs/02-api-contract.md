@@ -44,7 +44,7 @@ Every failure, including 401/403 from the security chain, has one shape:
 | 401 | `UNAUTHENTICATED`, `BAD_CREDENTIALS` |
 | 403 | `FORBIDDEN` |
 | 404 | `NOT_FOUND` (also returned for another rider's booking, so its existence is not revealed) |
-| 409 | Business rules: `MATCH_REJECTED`, `GROUP_TOO_LARGE`, `BOOKING_PAUSED`, `ACTIVE_RIDE_EXISTS`, `DUTY_BLOCKED`, `ALREADY_ON_DUTY`, `VEHICLE_IN_USE`, `VEHICLE_NOT_ALLOWED`, `VEHICLE_OFF_ROAD`, `TRIP_OPEN`, `NOT_AT_PICKUP`, `CANNOT_ARRIVE`, `WRONG_STOP`, `OTP_LOCKED`, `NO_SHOW_TOO_EARLY`, `NOT_CANCELLABLE`, `ROUTE_IN_USE`, `STALE_DATA`, `DATA_CONFLICT`, `BUSY` |
+| 409 | Business rules: `MATCH_REJECTED`, `GROUP_TOO_LARGE`, `BOOKING_PAUSED`, `ACTIVE_RIDE_EXISTS`, `DUTY_BLOCKED`, `ALREADY_ON_DUTY`, `VEHICLE_IN_USE`, `VEHICLE_NOT_ALLOWED`, `VEHICLE_OFF_ROAD`, `TRIP_OPEN`, `NOT_AT_PICKUP`, `CANNOT_ARRIVE`, `WRONG_STOP`, `OTP_LOCKED`, `NO_SHOW_TOO_EARLY`, `NOT_CANCELLABLE`, `NOT_WAITING_FOR_CAB`, `ROUTE_IN_USE`, `STALE_DATA`, `DATA_CONFLICT`, `BUSY` |
 | 410 | `LINK_EXPIRED` (tracking link after the ride closed) |
 | 422 | `OTP_INVALID`, `CHECKLIST_INCOMPLETE`, `ODOMETER_BELOW_LAST`, `ODOMETER_BELOW_START`, `NO_ROUTE`, `SAME_STOP`, `UNKNOWN_STOP`, `BAD_TIME`, `BAD_PERIOD` |
 | 500 | `INTERNAL_ERROR` (logged server-side, no stack trace to the client) |
@@ -59,7 +59,7 @@ Every failure, including 401/403 from the security chain, has one shape:
 |---|---|---|---|
 | POST | `/api/auth/login` | `{ username, password }` | `LoginResponse { token, expiresAt, user: UserSummary }` |
 | GET | `/api/auth/me` | | `UserSummary { id, username, fullName, role, email, phone }` |
-| GET | `/api/stops` | | `StopDto[] { id, code, name, zone, latitude, longitude, geofenceM }` |
+| GET | `/api/stops` | | `StopDto[] { id, code, name, zone, landmark, latitude, longitude, geofenceM }` (landmark: where exactly to wait) |
 | GET | `/api/routes` · `/api/routes/{id}` | | `RouteDto { id, code, label, routeType, frequencyMin, maxPassengers, maxWaitMin, maxDetourMin, speedLimitKmh, version, totalMinutes, totalKm, stops[] }` |
 
 ### Rider (`EMPLOYEE`)
@@ -70,12 +70,48 @@ Every failure, including 401/403 from the security chain, has one shape:
 | GET | `/api/rider/profile` | | `EmployeeProfileDto { personnelNo, fullName, email, phone, department, grade, costCentreCode, costCentreName, exclusiveEligible, bookingPaused, noShowsInWindow }` |
 | GET | `/api/rider/destinations?fromStopId=` | | `DestinationDto[] { stopId, stopName, routeCode, routeName, rideMinutes, rideKm }` (stops reachable forward on a route) |
 | POST | `/api/rider/ride-options` | `RideOptionsRequest { fromStopId*, toStopId*, seats (1-12), scheduledAt? }` | `RideOptionsResponse` (below) |
+| POST | `/api/rider/availability` | `{ fromStopId*, toStopId*, seats (1-12) }` | `AvailabilityDto` (below): when a ride can reach the pickup even if none is free, every cab on duty (driver, phone, seats, distance, when it frees up), and pickup points within walking distance |
 | POST | `/api/rider/bookings` | `CreateBookingRequest` (below) + header `Idempotency-Key` | **201** `BookingDto` |
 | GET | `/api/rider/bookings?scope=upcoming\|past\|cancelled` | | `BookingSummaryDto[]` |
 | GET | `/api/rider/bookings/{id}` | | `BookingDto` (own bookings only) |
+| GET | `/api/rider/bookings/{id}/availability` | | `AvailabilityDto` with `search`: seconds searching, seconds since the last check, next automatic check, check interval, seconds until the request expires, last engine note |
+| POST | `/api/rider/bookings/{id}/search` | | `BookingDto`. Search again now: matches a waiting request immediately. A booking that is not waiting, or was checked in the last 3 s, is returned unchanged. |
+| POST | `/api/rider/bookings/{id}/location` | `{ latitude*, longitude*, accuracyM? 0-5000, ageSeconds? 0-600 }` | `RiderLocationAckDto { shared, sharedWith, pickupName, metresToPickup?, atPickup, outsideServiceArea, message? }`. Shares the rider's position with the driver coming for them; only while the cab is on its way (`ASSIGNED`), else 409 `NOT_WAITING_FOR_CAB`. See [Live location](#live-location). |
+| DELETE | `/api/rider/bookings/{id}/location` | | **204**. Stop sharing: the position is deleted and the driver stops seeing it at once. |
 | POST | `/api/rider/bookings/{id}/cancel` | `{ reason? }` | `BookingDto`. Allowed any time before boarding. |
 | POST | `/api/rider/bookings/{id}/rating` | `{ rating* 1-5, tags: [ON_TIME\|CLEAN_CAB\|SAFE_DRIVING\|LONG_WAIT\|HARD_TO_FIND], note? }` | `BookingDto` |
 | POST | `/api/rider/sos` | `{ bookingId?, latitude?, longitude?, note? }` | `{ alertId, message }` |
+
+`AvailabilityDto` when C-12 is full and N. Gupta asks for Gate 2 → Blast Furnace (trimmed; real response). Cabs that cannot take the rider now show when they could reach the pickup: after the last drop of their current run plus the drive over, or not at all (off-road, blocked, or the shift ends first). The shuttle is listed as walk-up. `search` (last) comes only from `GET /api/rider/bookings/{id}/availability` for a waiting request; `POST /api/rider/availability` returns it as null.
+
+```json
+{
+  "checkedAt": "2026-10-01T00:39:01", "route": { "code": "R1", "label": "Route 1 · North corridor" },
+  "pickup": { "code": "GATE2", "name": "Gate 2", "zone": "Z1", "landmark": "Security cabin, visitor lane" },
+  "vehiclesOnDuty": 6, "availableNow": false,
+  "summary": "No cab is free right now. The earliest is C-33 at Gate 2 in about 19 min (after its last drop at Rolling Mill, then 11 min to Gate 2).",
+  "upcomingAtPickup": [
+    { "kind": "CAB", "vehicleCode": "C-33", "driverName": "V. Rao", "inMinutes": 19, "distanceKm": 3.69, "availableNow": false,
+      "note": "After its last drop at Rolling Mill, then 11 min to Gate 2" },
+    { "kind": "CAB", "vehicleCode": "C-12", "driverName": "S. Kumar", "inMinutes": 28, "distanceKm": 0, "availableNow": false, "…": "…" }
+  ],
+  "nearbyCabs": [
+    { "vehicleCode": "C-12", "registrationNo": "MH 12 AB 4412", "fleet": "LHS own fleet", "driverName": "S. Kumar",
+      "driverPhone": "+91 98220 77201", "status": "FULL", "statusLabel": "Full · Route 1 · North corridor", "at": "Gate 2",
+      "distanceKm": 0, "seatsTaken": 3, "capacity": 3, "canTakeYou": false, "availableInMinutes": 28 },
+    { "vehicleCode": "C-21", "driverName": "A. Singh", "status": "UNAVAILABLE", "distanceKm": 0.98, "availableInMinutes": null,
+      "note": "Driver A. Singh would pass the duty-hour limit (8h52m of 9h00m used)", "…": "…" }
+  ],
+  "alternativeSpots": [
+    { "stop": { "name": "Admin Block", "landmark": "Main porch, facing the flag post" }, "walkMetres": 911, "walkMinutes": 13,
+      "rideInMinutes": 20, "readyInMinutes": 20, "vehicleCode": "C-33", "sooner": false }
+  ],
+  "search": { "searchingForSeconds": 40, "lastCheckedSecondsAgo": 40, "nextCheckInSeconds": 7, "checkEverySeconds": 15,
+              "expiresInSeconds": 5360, "expiresAt": "2026-10-01T02:08:21", "lastResult": "No cab free yet: …" }
+}
+```
+
+Pickup points within `NEARBY_SPOT_RADIUS_M` (setting, default 1200 m straight line) that are on a route to the same drop are suggested; walking is estimated at 75 m/min over 1.25 × the straight line. `sooner` is true when walking there and catching the ride beats waiting at the chosen pickup.
 
 `CreateBookingRequest`:
 
@@ -121,13 +157,20 @@ Every failure, including 401/403 from the security chain, has one shape:
   "createdAt": "2026-09-30T03:01:49.1565132", "assignedAt": "2026-09-30T03:01:49.1894569",
   "otp": "9846", "trackingToken": "WRPVHGG5", "trackingUrl": "http://localhost:8080/t/WRPVHGG5",
   "vehicle": { "code": "C-12", "registrationNo": "MH 12 AB 4412", "vehicleType": "CAB", "seatCapacity": 4 },
-  "driver": { "name": "S. Kumar", "phone": "+91 98220 77201" },
+  "driver": { "name": "S. Kumar", "phone": "+91 98220 77201", "fleet": "LHS own fleet" },
+  "cabLocation": { "vehicleCode": "C-12", "latitude": 18.624, "longitude": 73.8003, "accuracyM": 8, "speedKmh": 14.4,
+                   "heading": 205, "updatedAt": "2026-10-01T21:53:57", "secondsAgo": 0, "live": true,
+                   "nearStopName": null, "towardsStopName": "Gate 2", "metresToStop": 365 },
+  "myLocation": { "latitude": 18.6214, "longitude": 73.7987, "accuracyM": 12, "updatedAt": "2026-10-01T21:53:56",
+                  "secondsAgo": 1, "live": true, "pickupName": "Gate 2", "metresToPickup": 31, "atPickup": true,
+                  "metresFromCab": 335 },
   "tripCode": "T-0930-VQEH",
   "progress": {
     "stage": "ON_THE_WAY", "stageLabel": "Cab on the way",
     "etaToPickupMinutes": 0, "etaToDropMinutes": 17, "vehicleAt": "Gate 2",
     "coRiders": 2, "seatsTaken": 3, "capacity": 3,
-    "stops": [ { "seq": 1, "stopName": "Gate 2", "pickup": true, "drop": false, "state": "NEXT" }, "…" ]
+    "stops": [ { "seq": 1, "stopName": "Gate 2", "latitude": 18.6212, "longitude": 73.7985, "pickup": true, "drop": false,
+                 "state": "NEXT" }, "…" ]
   },
   "costCentreCode": "CC-4471", "rideKm": 3.4, "rideMinutes": 15, "distanceKm": null, "costAmount": null,
   "matchNote": "C-12 · ETA 0 min · 2 of 3 seats taken · 0.0 empty km · own fleet · score -3.00",
@@ -135,7 +178,7 @@ Every failure, including 401/403 from the security chain, has one shape:
 }
 ```
 
-`progress.stage`: `SCHEDULED`, `AWAITING_APPROVAL`, `FINDING_CAB`, `ON_THE_WAY`, `AT_PICKUP`, `ON_TRIP`, `COMPLETED`, `CLOSED`. `otp` is `null` once the ride is closed.
+`progress.stage`: `SCHEDULED`, `AWAITING_APPROVAL`, `FINDING_CAB`, `ON_THE_WAY`, `AT_PICKUP`, `ON_TRIP`, `COMPLETED`, `CLOSED`. `otp` is `null` once the ride is closed. `cabLocation` is set while the booking is `ASSIGNED` (distance to the pickup) or `ONBOARD` (distance to the drop); `myLocation` only while `ASSIGNED` and the rider shares.
 
 ### Driver (`DRIVER`)
 
@@ -149,7 +192,7 @@ Every failure, including 401/403 from the security chain, has one shape:
 | POST | `/api/driver/trips/{tripId}/arrive` | `{ stopSeq* }` (must be the next stop; repeat taps are harmless) | `DriverQueueResponse` (`trip: null` when the last drop closes the trip) |
 | POST | `/api/driver/trips/{tripId}/board` | `{ bookingId*, otp*: "\\d{4}" }` | `DriverQueueResponse`. Wrong code: 422 `OTP_INVALID`; after 5, 409 `OTP_LOCKED`. |
 | POST | `/api/driver/trips/{tripId}/no-show` | `{ bookingId* }` | `DriverQueueResponse`. Only after the route's max wait. |
-| POST | `/api/driver/location` | `{ latitude*, longitude*, speedKmh?, recordedAt? }` | `LocationAckDto { overspeed, speedLimitKmh, autoArrivedAt? }` |
+| POST | `/api/driver/location` | `{ latitude*, longitude*, speedKmh?, accuracyM? 0-5000, heading? 0-359, ageSeconds?, recordedAt? }` | `LocationAckDto { overspeed, speedLimitKmh, autoArrivedAt?, outsideServiceArea }`. Moves the cab on its riders' screens. Send `ageSeconds` (how old the fix is on the phone) rather than `recordedAt`; `recordedAt` is for AIS-140 boxes that buffer. See [Live location](#live-location). |
 | POST | `/api/driver/issues` | `{ type*: BREAKDOWN\|ACCIDENT\|DELAY\|FUEL\|OTHER, description*, litres? }` | `IssueResultDto { alertId, message, ridersRematched }` |
 | POST | `/api/driver/sos` | `{ latitude?, longitude?, note? }` | `IssueResultDto` |
 
@@ -160,14 +203,35 @@ Every failure, including 401/403 from the security chain, has one shape:
   "tripId": 1481, "tripCode": "T-0930-VQEH", "status": "PLANNED",
   "route": { "code": "R1", "label": "Route 1 · North corridor" },
   "capacity": 3, "onBoard": 0, "seatsLeft": 3, "currentSeq": null,
-  "nextStop": { "seq": 1, "stopName": "Gate 2", "state": "NEXT", "etaMinutes": 0, "summary": "Pick up 3 riders",
+  "nextStop": { "seq": 1, "stopName": "Gate 2", "latitude": 18.6212, "longitude": 73.7985, "state": "NEXT",
+    "etaMinutes": 3, "summary": "Pick up 3 riders",
     "pickups": [ { "bookingId": 4, "riderName": "M. Iyer", "personnelNo": "LHS-31890", "toStopName": "Coke Plant",
-                   "status": "ASSIGNED", "noShowAllowedInSeconds": null, "otpLocked": false }, "…" ],
+                   "status": "ASSIGNED", "noShowAllowedInSeconds": null, "otpLocked": false,
+                   "location": { "latitude": 18.6214, "longitude": 73.7987, "accuracyM": 12, "secondsAgo": 1, "live": true,
+                                 "pickupName": "Gate 2", "metresToPickup": 31, "atPickup": true, "metresFromCab": 335, "…": "…" } },
+                 "…" ],
     "drops": [] },
   "canArriveNext": true, "arriveBlockedReason": null, "speedLimitKmh": 20,
+  "cab": { "vehicleCode": "C-12", "latitude": 18.624, "longitude": 73.8003, "live": true, "secondsAgo": 0,
+           "towardsStopName": "Gate 2", "metresToStop": 365, "…": "…" },
   "stops": [ "…Gate 2 (pick up 3) · Coke Plant (drop 1) · Blast Furnace (drop 2)…" ]
 }
 ```
+
+### Live location
+
+The driver's phone moves the cab on its riders' screens, and a waiting rider can show the driver where they are.
+
+| Rule | Detail |
+|---|---|
+| Who sends | The driver app while on duty, every ~10 s, and at least every 30 s while parked. The rider app only while their cab is on its way (`ASSIGNED`), every ~15 s. |
+| Who sees | The cab's position: its riders (`BookingDto.cabLocation`) and its driver (`TripQueueDto.cab`). A rider's position: the driver of the cab coming for them (`QueueRiderDto.location`) and the rider (`BookingDto.myLocation`). Not the desk, not the public tracking link. |
+| Live | `live` is true when the phone reported in the last 2 minutes. A quiet cab keeps its last fix (or the last stop it confirmed) with `live: false`; speed, heading and accuracy are then null. |
+| Retention | Only the rider's latest fix is kept (`rider_location`, no history). It is deleted when they board, stop sharing (`DELETE …/location`) or the booking closes (swept every 5 min), and not shown once older than 15 min. The cab keeps its GPS history in `gps_ping`, as before. |
+| Service area | A fix farther than `SERVICE_AREA_RADIUS_M` (setting, default 5000 m) from every active pickup point is ignored: `outsideServiceArea: true`. This stops a GPS glitch, or a laptop running the web app, from moving a cab or a rider. `0` turns the check off. |
+| Out of order | A driver fix older than the cab's last one is stored in history but does not move the cab, alert or trigger a geofence arrival. |
+| ETAs | A cab starts from the last stop it confirmed, unless its live GPS puts it more than 150 m (or twice the stop's arrival radius) away from it; then it starts from where it is. |
+| Distances | `metresToStop`, `metresToPickup`, `metresFromCab` are straight-line metres. |
 
 ### Desk (`DESK`, `ADMIN`)
 
@@ -202,6 +266,9 @@ Every failure, including 401/403 from the security chain, has one shape:
 | GET | `/api/admin/routes` | | `RouteDto[]` (including inactive) |
 | PUT | `/api/admin/routes/{id}/rules` | `{ maxPassengers* 1-12, maxWaitMin* 1-30, maxDetourMin* 0-60, speedLimitKmh* 5-80, frequencyMin? 5-240, version* }` | `RouteDto`. Audited; triggers dispatch. |
 | PUT | `/api/admin/routes/{id}/stops` | `{ version*, stops*: [{ stopId, legMinutes, legKm }] }` (2-30 stops; a loop must end where it starts) | `RouteDto`. 409 `ROUTE_IN_USE` while rides are live. |
+| GET | `/api/admin/stops` | | `PickupPointDto[] { id, code, name, zone, landmark, latitude, longitude, geofenceM, active, routes[], liveBookings }` (in service first) |
+| POST | `/api/admin/stops` | `{ code* [A-Z0-9-]{2,20}, name*, zone*, landmark?, latitude*, longitude*, geofenceM* 10-500 }` | **201** `PickupPointDto`. 409 `DUPLICATE_CODE` / `DUPLICATE_NAME`; 422 `FAR_FROM_PLANT` (over 20 km from every other point). Audited. |
+| PUT | `/api/admin/stops/{id}` | same body plus `active` (code is fixed) | `PickupPointDto`. Taking a point out of service: 409 `STOP_ON_ROUTE` while a route's sequence uses it, 409 `STOP_IN_USE` while open bookings do. Audited. |
 | GET | `/api/admin/compliance` | | `ComplianceItemDto[]` (expiring or expired documents, soonest first) |
 | GET | `/api/admin/audit?limit=50` | | `AuditLogDto[]` |
 | POST | `/api/admin/demo/reset` | | `{ message }` (only when `DEMO_RESET_ENABLED=true`) |

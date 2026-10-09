@@ -3,6 +3,8 @@ package com.srmecotech.plantride.desk;
 import com.srmecotech.plantride.common.security.AuthenticatedUser;
 import com.srmecotech.plantride.desk.dto.DeskDtos.AuditLogDto;
 import com.srmecotech.plantride.desk.dto.DeskDtos.ComplianceItemDto;
+import com.srmecotech.plantride.desk.dto.DeskDtos.PickupPointDto;
+import com.srmecotech.plantride.desk.dto.DeskDtos.SavePickupPointRequest;
 import com.srmecotech.plantride.desk.dto.DeskDtos.ResequenceRequest;
 import com.srmecotech.plantride.desk.dto.DeskDtos.UpdateRouteRulesRequest;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.RouteDto;
@@ -11,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -32,9 +36,11 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final PickupPointService pickupPointService;
 
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, PickupPointService pickupPointService) {
         this.adminService = adminService;
+        this.pickupPointService = pickupPointService;
     }
 
     @GetMapping("/routes")
@@ -55,6 +61,27 @@ public class AdminController {
     public RouteDto resequence(@PathVariable Long id, @AuthenticationPrincipal AuthenticatedUser user,
                                @Valid @RequestBody ResequenceRequest request) {
         return adminService.resequence(id, request, user);
+    }
+
+    @GetMapping("/stops")
+    @Operation(summary = "Every pickup point, in service first, with the routes that serve it and open bookings")
+    public List<PickupPointDto> stops() {
+        return pickupPointService.list();
+    }
+
+    @PostMapping("/stops")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Add a pickup point (then put it on a route in the route's stop sequence)")
+    public PickupPointDto createStop(@AuthenticationPrincipal AuthenticatedUser user,
+                                     @Valid @RequestBody SavePickupPointRequest request) {
+        return pickupPointService.create(request, user);
+    }
+
+    @PutMapping("/stops/{id}")
+    @Operation(summary = "Edit a pickup point, or take it out of service (refused while a route or open booking uses it)")
+    public PickupPointDto updateStop(@PathVariable Long id, @AuthenticationPrincipal AuthenticatedUser user,
+                                     @Valid @RequestBody SavePickupPointRequest request) {
+        return pickupPointService.update(id, request, user);
     }
 
     @GetMapping("/compliance")

@@ -20,6 +20,8 @@ public class SettingsService {
     public static final String OTP_MAX_ATTEMPTS = "OTP_MAX_ATTEMPTS";
     public static final String DOC_EXPIRY_ALERT_DAYS = "DOC_EXPIRY_ALERT_DAYS";
     public static final String REQUEST_EXPIRY_MINUTES = "REQUEST_EXPIRY_MINUTES";
+    public static final String NEARBY_SPOT_RADIUS_M = "NEARBY_SPOT_RADIUS_M";
+    public static final String SERVICE_AREA_RADIUS_M = "SERVICE_AREA_RADIUS_M";
 
     private static final Logger log = LoggerFactory.getLogger(SettingsService.class);
 

@@ -4,8 +4,11 @@ import com.srmecotech.plantride.booking.Booking;
 import com.srmecotech.plantride.booking.BookingRepository;
 import com.srmecotech.plantride.booking.BookingStatus;
 import com.srmecotech.plantride.common.settings.SettingsService;
+import com.srmecotech.plantride.gps.LiveLocationService;
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.RiderLocationDto;
 import com.srmecotech.plantride.masterdata.RoutePlan;
 import com.srmecotech.plantride.masterdata.RouteResolver;
+import com.srmecotech.plantride.masterdata.Stop;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.RouteRef;
 import com.srmecotech.plantride.matching.EtaCalculator;
 import com.srmecotech.plantride.trip.dto.DriverDtos.QueueRiderDto;
@@ -20,11 +23,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** Builds the driver's sequenced queue: stops in route order with who boards and who leaves at each. */
+/**
+ * Builds the driver's sequenced queue: stops in route order with who boards
+ * and who leaves at each, where the cab is, and where each waiting rider is
+ * when they share their location.
+ */
 @Service
 public class DriverQueueService {
 
@@ -34,14 +42,17 @@ public class DriverQueueService {
     private final BookingRepository bookingRepository;
     private final RouteResolver routeResolver;
     private final EtaCalculator etaCalculator;
+    private final LiveLocationService liveLocations;
     private final SettingsService settings;
     private final Clock clock;
 
     public DriverQueueService(BookingRepository bookingRepository, RouteResolver routeResolver,
-                              EtaCalculator etaCalculator, SettingsService settings, Clock clock) {
+                              EtaCalculator etaCalculator, LiveLocationService liveLocations,
+                              SettingsService settings, Clock clock) {
         this.bookingRepository = bookingRepository;
         this.routeResolver = routeResolver;
         this.etaCalculator = etaCalculator;
+        this.liveLocations = liveLocations;
         this.settings = settings;
         this.clock = clock;
     }
@@ -53,6 +64,7 @@ public class DriverQueueService {
         List<Booking> riders = bookingRepository.findOnTrip(trip.getId(), SHOWN);
         List<Booking> active = riders.stream().filter(b -> BookingStatus.ON_TRIP.contains(b.getStatus())).toList();
         int otpMax = settings.getInt(SettingsService.OTP_MAX_ATTEMPTS, 5);
+        Map<Long, RiderLocationDto> locations = liveLocations.waitingRiders(riders, trip.getVehicle(), plan);
 
         Set<Integer> itinerary = new TreeSet<>();
         Set<Integer> activeStops = new TreeSet<>();
@@ -84,11 +96,12 @@ public class DriverQueueService {
             int eta = "DONE".equals(state) || "CURRENT".equals(state) ? 0
                     : etaCalculator.minutesUntil(trip, plan, seq, activeStops);
             List<QueueRiderDto> pickups = riders.stream().filter(b -> b.getFromSeq() == seq)
-                    .map(b -> rider(b, trip, plan, now, otpMax)).toList();
+                    .map(b -> rider(b, trip, plan, now, otpMax, locations.get(b.getId()))).toList();
             List<QueueRiderDto> drops = riders.stream().filter(b -> b.getToSeq() == seq)
-                    .map(b -> rider(b, trip, plan, now, otpMax)).toList();
-            stops.add(new QueueStopDto(seq, plan.stopAt(seq).getId(), plan.stopAt(seq).getName(), state, eta,
-                    summary(pickups, drops), pickups, drops));
+                    .map(b -> rider(b, trip, plan, now, otpMax, null)).toList();
+            Stop stop = plan.stopAt(seq);
+            stops.add(new QueueStopDto(seq, stop.getId(), stop.getName(), stop.getLatitude(), stop.getLongitude(),
+                    state, eta, summary(pickups, drops), pickups, drops));
         }
 
         int capacity = trip.isExclusiveRide()
@@ -102,10 +115,12 @@ public class DriverQueueService {
         return new TripQueueDto(trip.getId(), trip.getTripCode(), trip.getStatus(), RouteRef.of(trip.getRoute()),
                 trip.isExclusiveRide(), capacity, onBoard, Math.max(0, capacity - onBoard), current,
                 current == null ? null : plan.stopAt(current).getName(), nextStop, blocker.isEmpty(),
-                blocker.orElse(null), trip.getRoute().getSpeedLimitKmh(), stops);
+                blocker.orElse(null), trip.getRoute().getSpeedLimitKmh(),
+                liveLocations.cab(trip.getVehicle(), plan, next == null ? null : plan.stopAt(next)), stops);
     }
 
-    private QueueRiderDto rider(Booking b, Trip trip, RoutePlan plan, LocalDateTime now, int otpMax) {
+    private QueueRiderDto rider(Booking b, Trip trip, RoutePlan plan, LocalDateTime now, int otpMax,
+                                RiderLocationDto location) {
         Long noShowIn = null;
         if (b.getStatus() == BookingStatus.ASSIGNED && trip.getCurrentSeq() != null
                 && trip.getCurrentSeq() == b.getFromSeq() && trip.getLastArrivedAt() != null) {
@@ -115,7 +130,7 @@ public class DriverQueueService {
         String personnelNo = b.isForGuest() ? "Guest of " + b.getEmployee().getPersonnelNo() : b.getEmployee().getPersonnelNo();
         return new QueueRiderDto(b.getId(), b.getBookingCode(), b.getRiderName(), personnelNo, b.getRiderPhone(),
                 b.getSeats(), b.getStatus().name(), plan.stopAt(b.getFromSeq()).getName(),
-                plan.stopAt(b.getToSeq()).getName(), noShowIn, b.getOtpAttempts() >= otpMax);
+                plan.stopAt(b.getToSeq()).getName(), noShowIn, b.getOtpAttempts() >= otpMax, location);
     }
 
     private static String summary(List<QueueRiderDto> pickups, List<QueueRiderDto> drops) {

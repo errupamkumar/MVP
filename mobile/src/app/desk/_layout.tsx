@@ -61,6 +61,14 @@ function DeskTabs() {
         }}
       />
       <Tabs.Screen
+        name="points"
+        options={{
+          title: 'Pickup points',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color }) => <Ionicons name="location" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="setup"
         options={{
           title: 'Routes & rules',

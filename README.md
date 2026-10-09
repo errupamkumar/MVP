@@ -2,11 +2,11 @@
 
 Smart cab booking, pooling, fleet compliance and cost-centre billing for movement inside the LHS plant, built from the SRM ECO TECH proposal decks.
 
-- **Rider app:** book in under 30 seconds, see the cab and driver, share a live tracking link, board with a 4-digit OTP, rate the ride.
-- **Driver app:** start-of-duty check with a compliance gate, pickups in route order, OTP boarding, no-show after the wait, issues and SOS, sign-off with an odometer-vs-GPS check.
-- **Desk and admin console:** live fleet board with KPIs and alerts, queue with approvals and overrides (the engine explains every decision), billing by cost centre with vendor-bill-vs-GPS reconciliation and a SAP CSV export, route rules and sequence as configuration.
+- **Rider app:** book in under 30 seconds, see the cab and driver, follow the cab on a live map (how far from the pickup, moving or stopped), share your own location with the driver while you wait, share a live tracking link, board with a 4-digit OTP, rate the ride. When no cab is free: when a ride can reach the pickup and how far away it is, every cab on duty with its driver, seats and availability, nearby pickup points where a ride comes sooner, and live search progress with *Search again now*.
+- **Driver app:** start-of-duty check with a compliance gate, the cab's GPS shared with its riders while on duty, a live map of the cab and the riders waiting for it (each rider's distance from the pickup, directions, call), pickups in route order, OTP boarding, no-show after the wait, issues and SOS, sign-off with an odometer-vs-GPS check.
+- **Desk and admin console:** live fleet board with KPIs and alerts, queue with approvals and overrides (the engine explains every decision), billing by cost centre with vendor-bill-vs-GPS reconciliation and a SAP CSV export, route rules and sequence as configuration, pickup points (add, edit, where-to-wait landmark, arrival radius, take out of service).
 
-**Verified state:** 43/43 backend tests (unit, web slice, MySQL integration including a concurrent last-seat race); a 43-check API smoke test of the golden path; a headless-browser UI walk of all three roles; strict TypeScript; web and Android bundles build. See [`docs/03-self-test-and-review.md`](docs/03-self-test-and-review.md).
+**Verified state:** 57/57 backend tests (unit, web slice, MySQL integration including a concurrent last-seat race); a 43-check API smoke test of the golden path; a headless-browser UI walk of all three roles; strict TypeScript; web and Android bundles build. See [`docs/03-self-test-and-review.md`](docs/03-self-test-and-review.md).
 
 | Docs | |
 |---|---|
@@ -16,6 +16,9 @@ Smart cab booking, pooling, fleet compliance and cost-centre billing for movemen
 | [04 · Demo script](docs/04-demo-script.md) | The 5-minute client walkthrough, with credentials and recovery steps |
 | [Demo walkthrough](docs/walkthrough/index.html) | Every screen, page by page with screenshots: employee, driver, transport desk, exception paths. Published copy: https://claude.ai/artifact/V7xxt1JRWaBXrDwKfG19Ej |
 | [User journeys](docs/user-journey/index.html) | Driver, User and Admin journeys step by step, a screenshot per step, a captioned video of each journey, and review findings. Published copy: https://claude.ai/artifact/1TnqEQnB1M4cHGXBqrHDqH |
+| [Scenario walkthrough](docs/scenario-walkthrough/) | One journey (rider A. Raghavan, driver S. Kumar, admin R. Kapoor) at a morning shift change: a 1080p video with chapters (`Plant-Ride-Scenario-Walkthrough.mp4`, 4:49), a 22-slide deck (`Plant-Ride-Scenario-Walkthrough.pptx`) and every screenshot |
+| [Rider → Driver journey (PPTX)](docs/rider-driver-journey/Plant-Ride-Rider-Driver-Journey.pptx) | One shared ride screen by screen: 16 rider screens, then 14 driver screens, each with numbered callouts, including live location (cab on the rider's map, waiting riders on the driver's map). Screenshots in `docs/rider-driver-journey/screenshots/` |
+| [MVP scope (PDF)](docs/mvp-scope/Plant-Ride-MVP-Scope.pdf) | Scope screen by screen: Users, then Driver, then Admin; business rules, what is not in the MVP, verification. Source: `docs/mvp-scope/mvp-scope.html` |
 
 ---
 
@@ -34,14 +37,14 @@ Smart cab booking, pooling, fleet compliance and cost-centre billing for movemen
 │       │   ├── matching/         MatchingEngine · DispatchService · EtaCalculator · 15 s sweep
 │       │   ├── trip/             duties, driver queue, arrive / board / no-show, issues
 │       │   ├── booking/          rider API, ride options, progress, public tracking
-│       │   ├── gps/              ping ingest, overspeed, geofence arrival
+│       │   ├── gps/              ping ingest, overspeed, geofence arrival, live cab and rider positions
 │       │   ├── safety/           alerts, document-expiry monitor
 │       │   ├── billing/          cost allocation, monthly summary, CSV export
 │       │   ├── notification/     in-app notifications
 │       │   └── desk/             live board, queue actions, admin routes/rules/audit
 │       ├── main/resources/
 │       │   ├── application.yml
-│       │   ├── schema.sql        19 tables, DB-enforced invariants
+│       │   ├── schema.sql        20 tables, DB-enforced invariants
 │       │   ├── data.sql          demo cast + 30 days of history (dates relative to NOW())
 │       │   └── static/track.html shareable tracking page (/t/<token>)
 │       └── test/                 unit · @WebMvcTest · @SpringBootTest (MySQL)
@@ -50,7 +53,7 @@ Smart cab booking, pooling, fleet compliance and cost-centre billing for movemen
 │       ├── app/                  Expo Router screens: login, rider/, driver/, desk/
 │       ├── api/                  axios client (base URL, timeout, auth + error interceptors), types, endpoints
 │       ├── auth/                 session context, SecureStore / localStorage
-│       ├── hooks/                TanStack Query hooks (polling, invalidation), driver GPS
+│       ├── hooks/                TanStack Query hooks (polling, invalidation), driver and rider location sharing
 │       ├── components/           UI kit, error boundary, pickers, modals
 │       ├── features/             booking draft, driver sign-on and trip queue
 │       └── lib/                  plant-time formatting, cross-platform dialogs, theme
@@ -113,6 +116,8 @@ The app finds the API by itself: on the web it uses the page's host on port 8080
 
 **Phones cannot connect?** Same Wi-Fi as the laptop, and allow Java through the Windows firewall on port 8080 (or try `npx expo start --tunnel` for Metro plus `EXPO_PUBLIC_API_URL` for the API).
 
+**Live location.** On duty, the driver app shares the cab's position; while the cab is on its way, the rider app shares the rider's position with that driver. Each asks for location permission the first time. A browser shares location only from `localhost` or HTTPS, so on a phone use Expo Go rather than the web build over the LAN. The demo plant's coordinates are fictional, and fixes more than 5 km from every pickup point are ignored, so a laptop shows *Outside the plant area*. To place a laptop browser inside the plant: Chrome DevTools → ⋮ → More tools → **Sensors** → Location → *Other…*, e.g. Gate 2 `18.6212, 73.7985` or the road to Admin Block `18.6240, 73.8003`. Rules: [API contract · Live location](docs/02-api-contract.md#live-location).
+
 ### Alternative · Docker
 
 ```bash
@@ -145,7 +150,7 @@ Riders waiting at Gate 2 at start: M. Iyer (OTP **9317**) and S. Banerjee (OTP *
 ## Tests
 
 ```bash
-cd backend && mvn test                 # 43 tests; integration tests need MySQL (database app_mvp_test, created automatically)
+cd backend && mvn test                 # 57 tests; integration tests need MySQL (database app_mvp_test, created automatically)
 cd mobile  && npm run typecheck        # strict TypeScript
 ```
 
@@ -169,7 +174,7 @@ API (environment variables, defaults in `application.yml`):
 | `DEMO_RESET_ENABLED` | `true` | Allows `POST /api/admin/demo/reset`. **Set `false` outside demos.** |
 | `SERVER_PORT` | `8080` | |
 
-Plant rules that LHS changes at runtime live in the `app_setting` table: cost sharing rule (`DISTANCE`/`EQUAL`), no-show pause (3 in 30 days), dispatch lead time (20 min), advance booking window (7 days), OTP attempts (5), document alert window (30 days), request expiry (90 min). Per-route rules (occupancy cap, wait, detour, speed limit) are edited in **Routes & rules**.
+Plant rules that LHS changes at runtime live in the `app_setting` table: cost sharing rule (`DISTANCE`/`EQUAL`), no-show pause (3 in 30 days), dispatch lead time (20 min), advance booking window (7 days), OTP attempts (5), document alert window (30 days), request expiry (90 min), nearby pickup point radius (1200 m), service area for location fixes (`SERVICE_AREA_RADIUS_M`, 5000 m from the nearest pickup point). Per-route rules (occupancy cap, wait, detour, speed limit) are edited in **Routes & rules**.
 
 App (`mobile/.env`): `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SHOW_DEMO_ACCOUNTS=false` to hide the demo accounts.
 

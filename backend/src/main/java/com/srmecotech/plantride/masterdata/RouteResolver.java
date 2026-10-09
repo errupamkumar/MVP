@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Turns "from stop A to stop B" into a position range on a configured
@@ -52,6 +53,27 @@ public class RouteResolver {
             throw new InvalidRequestException("SAME_STOP", "Pickup and drop cannot be the same stop.");
         }
 
+        return best(from, to).orElseThrow(() -> new InvalidRequestException("NO_ROUTE",
+                "No configured route runs from " + from.getName() + " to " + to.getName() + "."));
+    }
+
+    /**
+     * Like {@link #resolve} but empty instead of an error when the stops are
+     * out of service, the same, or not on one route. Use it when probing
+     * several stops: an exception thrown through this transactional bean
+     * would mark the caller's transaction rollback-only even if caught.
+     */
+    @Transactional(readOnly = true)
+    public Optional<ResolvedRide> tryResolve(Long fromStopId, Long toStopId) {
+        if (fromStopId.equals(toStopId)) {
+            return Optional.empty();
+        }
+        Optional<Stop> from = stopRepository.findById(fromStopId).filter(Stop::isActive);
+        Optional<Stop> to = stopRepository.findById(toStopId).filter(Stop::isActive);
+        return from.isEmpty() || to.isEmpty() ? Optional.empty() : best(from.get(), to.get());
+    }
+
+    private Optional<ResolvedRide> best(Stop from, Stop to) {
         ResolvedRide best = null;
         for (RoutePlan plan : activePlans()) {
             for (int fromSeq : plan.seqsOfStop(from.getId())) {
@@ -65,11 +87,7 @@ public class RouteResolver {
                 }
             }
         }
-        if (best == null) {
-            throw new InvalidRequestException("NO_ROUTE",
-                    "No configured route runs from " + from.getName() + " to " + to.getName() + ".");
-        }
-        return best;
+        return Optional.ofNullable(best);
     }
 
     /** Every stop reachable from {@code fromStopId}, with the shortest ride to it. */

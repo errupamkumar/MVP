@@ -33,7 +33,9 @@ INSERT INTO app_setting (setting_key, setting_value, description) VALUES
 ('MAX_ADVANCE_BOOKING_DAYS', '7',        'How far ahead a ride can be scheduled, in days'),
 ('OTP_MAX_ATTEMPTS',         '5',        'Wrong boarding-OTP entries before a booking is locked for the desk'),
 ('DOC_EXPIRY_ALERT_DAYS',    '30',       'Days before a document expires that alerts start'),
-('REQUEST_EXPIRY_MINUTES',   '90',       'A request no cab could serve within this many minutes is closed');
+('REQUEST_EXPIRY_MINUTES',   '90',       'A request no cab could serve within this many minutes is closed'),
+('NEARBY_SPOT_RADIUS_M',     '1200',     'Pickup points within this straight-line distance are suggested when a ride comes sooner there'),
+('SERVICE_AREA_RADIUS_M',    '5000',     'Location fixes farther than this from every pickup point are ignored (GPS glitch, or a phone outside the plant)');
 
 -- ---------------------------------------------------------------------
 -- Cost centres (budgets are calibrated at the end of this script)
@@ -96,20 +98,20 @@ INSERT INTO employee (id, user_id, p_no, department, grade, cost_centre_id, excl
 -- Stops and the three configured routes (deck slide 8)
 -- Stop names are illustrative; coordinates are a fictional plant layout.
 -- ---------------------------------------------------------------------
-INSERT INTO stop (id, code, name, zone, latitude, longitude, geofence_m) VALUES
-( 1, 'GATE2',    'Gate 2',          'Z1', 18.621200, 73.798500, 40),
-( 2, 'ADMIN',    'Admin Block',     'Z1', 18.626800, 73.802100, 30),
-( 3, 'COKE',     'Coke Plant',      'Z3', 18.633500, 73.809000, 50),
-( 4, 'BF',       'Blast Furnace',   'Z3', 18.630100, 73.817100, 60),
-( 5, 'MAINGATE', 'Main Gate',       'Z2', 18.615000, 73.805000, 40),
-( 6, 'SINTER',   'Sinter Plant',    'Z2', 18.619000, 73.819000, 50),
-( 7, 'SMS',      'Steel Melt Shop', 'Z4', 18.623000, 73.837000, 60),
-( 8, 'HSM',      'Hot Strip Mill',  'Z4', 18.632000, 73.847000, 60),
-( 9, 'TOWNSHIP', 'Township',        'Z5', 18.598500, 73.785000, 60),
-(10, 'GATE5',    'Gate 5',          'Z5', 18.609000, 73.776000, 40),
-(11, 'POWER',    'Power Plant',     'Z5', 18.618000, 73.774000, 50),
-(12, 'ROLLING',  'Rolling Mill',    'Z4', 18.629000, 73.780000, 50),
-(13, 'STORES',   'Stores',          'Z1', 18.636000, 73.786000, 40);
+INSERT INTO stop (id, code, name, zone, latitude, longitude, landmark, geofence_m) VALUES
+( 1, 'GATE2',     'Gate 2',           'Z1', 18.621200, 73.798500, 'Security cabin, visitor lane', 40),
+( 2, 'ADMIN',     'Admin Block',      'Z1', 18.626800, 73.802100, 'Main porch, facing the flag post', 30),
+( 3, 'COKE',      'Coke Plant',       'Z3', 18.633500, 73.809000, 'Shift office canopy', 50),
+( 4, 'BF',        'Blast Furnace',    'Z3', 18.630100, 73.817100, 'Control room gate, No. 2 furnace', 60),
+( 5, 'MAINGATE',  'Main Gate',        'Z2', 18.615000, 73.805000, 'Bus bay beside the time office', 40),
+( 6, 'SINTER',    'Sinter Plant',     'Z2', 18.619000, 73.819000, 'Canteen side entrance', 50),
+( 7, 'SMS',       'Steel Melt Shop',  'Z4', 18.623000, 73.837000, 'Converter bay road, first aid post', 60),
+( 8, 'HSM',       'Hot Strip Mill',   'Z4', 18.632000, 73.847000, 'Coil yard gate', 60),
+( 9, 'TOWNSHIP',  'Township',         'Z5', 18.598500, 73.785000, 'Community hall bus shelter', 60),
+(10, 'GATE5',     'Gate 5',           'Z5', 18.609000, 73.776000, 'Security cabin, contractor lane', 40),
+(11, 'POWER',     'Power Plant',      'Z5', 18.618000, 73.774000, 'Switchyard gate', 50),
+(12, 'ROLLING',   'Rolling Mill',     'Z4', 18.629000, 73.780000, 'Despatch office', 50),
+(13, 'STORES',    'Stores',           'Z1', 18.636000, 73.786000, 'Central stores loading dock', 40);
 
 INSERT INTO route (id, code, name, route_type, service_note, frequency_min, first_departure,
                    max_passengers, max_wait_min, max_detour_min, speed_limit_kmh) VALUES

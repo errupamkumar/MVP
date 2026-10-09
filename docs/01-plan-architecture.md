@@ -152,6 +152,7 @@ erDiagram
   TRIP ||--o{ COST_ALLOCATION : "split into"
   VENDOR ||--o{ VENDOR_CLAIM : submits
   VEHICLE ||--o{ GPS_PING : reports
+  BOOKING ||--o| RIDER_LOCATION : "shared while waiting"
   VEHICLE ||--o{ ALERT : "raises"
   BOOKING ||--o{ ALERT : "SOS on"
   APP_USER ||--o{ NOTIFICATION : receives
@@ -193,7 +194,7 @@ erDiagram
   }
 ```
 
-19 tables. **Invariants enforced by MySQL itself**, as the last line of defence behind the services:
+20 tables. `rider_location` holds only a waiting rider's latest position (no history) and is deleted at boarding. **Invariants enforced by MySQL itself**, as the last line of defence behind the services:
 
 | Invariant | Constraint |
 |---|---|

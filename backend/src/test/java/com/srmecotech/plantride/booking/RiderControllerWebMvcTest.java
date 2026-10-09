@@ -150,7 +150,7 @@ class RiderControllerWebMvcTest {
                 new RouteRef(1L, "R1", "North corridor", "Route 1 · North corridor"),
                 new StopRef(1L, "GATE2", "Gate 2"), new StopRef(4L, "BF", "Blast Furnace"),
                 null, java.time.LocalDateTime.of(2026, 9, 22, 14, 5), null, null, null, null, null,
-                "4826", "TOKEN123", "http://localhost:8080/t/TOKEN123", null, null, "T-0922-ABCD", 2, null, progress,
+                "4826", "TOKEN123", "http://localhost:8080/t/TOKEN123", null, null, null, null, "T-0922-ABCD", 2, null, progress,
                 "CC-4471", "Operations", new BigDecimal("3.40"), 15, null, null, null, null, List.of(), null, true, false);
     }
 }

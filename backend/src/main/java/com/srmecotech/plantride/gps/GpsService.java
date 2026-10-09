@@ -11,6 +11,7 @@ import com.srmecotech.plantride.masterdata.RoutePlan;
 import com.srmecotech.plantride.masterdata.RouteResolver;
 import com.srmecotech.plantride.masterdata.Stop;
 import com.srmecotech.plantride.masterdata.Vehicle;
+import com.srmecotech.plantride.masterdata.VehicleRepository;
 import com.srmecotech.plantride.safety.AlertService;
 import com.srmecotech.plantride.safety.AlertSeverity;
 import com.srmecotech.plantride.safety.AlertType;
@@ -32,9 +33,11 @@ import java.util.List;
 
 /**
  * GPS ingest from the driver app (AIS-140 devices post the same shape).
- * Tracks the vehicle, never the person; raises overspeed alerts; and when a
- * ping lands inside the next stop's geofence, records the arrival exactly as
- * if the driver had tapped "Arrived", which is how a drop closes a trip.
+ * Tracks the vehicle, never the person; moves the cab its riders see on
+ * their screens; raises overspeed alerts; and when a ping lands inside the
+ * next stop's geofence, records the arrival exactly as if the driver had
+ * tapped "Arrived", which is how a drop closes a trip. Fixes outside the
+ * plant's service area are ignored.
  */
 @Service
 public class GpsService {
@@ -43,14 +46,14 @@ public class GpsService {
     private static final double OVERSPEED_TOLERANCE_KMH = 2.0;
     /** Plant-wide default when the cab is not on a trip. */
     private static final int DEFAULT_SPEED_LIMIT_KMH = 20;
-    /** Buffered pings older than this still update history, but do not alert or trigger arrivals. */
-    private static final int LIVE_WINDOW_MINUTES = 2;
 
     private final DriverContext driverContext;
     private final DutyRepository dutyRepository;
     private final TripRepository tripRepository;
     private final BookingRepository bookingRepository;
     private final GpsPingRepository pingRepository;
+    private final VehicleRepository vehicleRepository;
+    private final LiveLocationService liveLocations;
     private final RouteResolver routeResolver;
     private final TripService tripService;
     private final AlertService alertService;
@@ -58,12 +61,15 @@ public class GpsService {
 
     public GpsService(DriverContext driverContext, DutyRepository dutyRepository, TripRepository tripRepository,
                       BookingRepository bookingRepository, GpsPingRepository pingRepository,
+                      VehicleRepository vehicleRepository, LiveLocationService liveLocations,
                       RouteResolver routeResolver, TripService tripService, AlertService alertService, Clock clock) {
         this.driverContext = driverContext;
         this.dutyRepository = dutyRepository;
         this.tripRepository = tripRepository;
         this.bookingRepository = bookingRepository;
         this.pingRepository = pingRepository;
+        this.vehicleRepository = vehicleRepository;
+        this.liveLocations = liveLocations;
         this.routeResolver = routeResolver;
         this.tripService = tripService;
         this.alertService = alertService;
@@ -77,10 +83,18 @@ public class GpsService {
                 .orElseThrow(() -> new BusinessRuleException("NOT_ON_DUTY", "Location is only shared while on duty."));
         Vehicle vehicle = duty.getVehicle();
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime recordedAt = request.recordedAt() == null || request.recordedAt().isAfter(now.plusMinutes(2))
-                ? now : request.recordedAt();
+        LocalDateTime recordedAt = recordedAt(request, now);
         double speed = request.speedKmh() == null ? 0 : request.speedKmh();
         Trip trip = tripRepository.findOpenByVehicleId(vehicle.getId()).orElse(null);
+        int limit = trip != null ? trip.getRoute().getSpeedLimitKmh() : DEFAULT_SPEED_LIMIT_KMH;
+        if (!liveLocations.insideServiceArea(request.latitude(), request.longitude())) {
+            return new LocationAckDto(false, limit, null, true);
+        }
+
+        // Move the cab before inserting the ping: the insert's foreign-key check takes a shared
+        // lock on the vehicle row, and upgrading that to the update's exclusive lock can deadlock.
+        boolean newest = vehicleRepository.moveTo(vehicle.getId(), request.latitude(), request.longitude(), speed,
+                request.accuracyM(), request.heading(), recordedAt) == 1;
 
         GpsPing ping = new GpsPing();
         ping.setVehicle(vehicle);
@@ -92,17 +106,9 @@ public class GpsService {
         ping.setReceivedAt(now);
         pingRepository.save(ping);
 
-        // Offline buffers flush out of order: only newer points move the live position.
-        boolean newest = vehicle.getLastPingAt() == null || recordedAt.isAfter(vehicle.getLastPingAt());
-        if (newest) {
-            vehicle.setLastLatitude(request.latitude());
-            vehicle.setLastLongitude(request.longitude());
-            vehicle.setLastSpeedKmh(speed);
-            vehicle.setLastPingAt(recordedAt);
-        }
-        boolean live = newest && !recordedAt.isBefore(now.minusMinutes(LIVE_WINDOW_MINUTES));
+        // Offline buffers flush out of order: only the newest, recent point alerts or arrives.
+        boolean live = newest && !recordedAt.isBefore(now.minusSeconds(LiveLocationService.LIVE_SECONDS));
 
-        int limit = trip != null ? trip.getRoute().getSpeedLimitKmh() : DEFAULT_SPEED_LIMIT_KMH;
         boolean overspeed = speed > limit + OVERSPEED_TOLERANCE_KMH;
         if (overspeed && live) {
             String near = vehicle.getCurrentStop() == null ? "" : " near " + vehicle.getCurrentStop().getName();
@@ -119,7 +125,15 @@ public class GpsService {
         if (trip != null && live) {
             autoArrivedAt = tryGeofenceArrival(trip, request.latitude(), request.longitude());
         }
-        return new LocationAckDto(overspeed, limit, autoArrivedAt);
+        return new LocationAckDto(overspeed, limit, autoArrivedAt, false);
+    }
+
+    /** Device age wins over a device timestamp (phone clocks and time zones drift); a future time means now. */
+    private static LocalDateTime recordedAt(LocationPingRequest request, LocalDateTime now) {
+        if (request.ageSeconds() != null) {
+            return now.minusSeconds(request.ageSeconds());
+        }
+        return request.recordedAt() == null || request.recordedAt().isAfter(now.plusMinutes(2)) ? now : request.recordedAt();
     }
 
     private String tryGeofenceArrival(Trip trip, double lat, double lng) {

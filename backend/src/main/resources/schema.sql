@@ -18,6 +18,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS notification;
 DROP TABLE IF EXISTS audit_log;
 DROP TABLE IF EXISTS gps_ping;
+DROP TABLE IF EXISTS rider_location;
 DROP TABLE IF EXISTS alert;
 DROP TABLE IF EXISTS cost_allocation;
 DROP TABLE IF EXISTS vendor_claim;
@@ -112,10 +113,12 @@ CREATE TABLE stop (
   zone        VARCHAR(20)  NOT NULL,
   latitude    DOUBLE       NOT NULL,
   longitude   DOUBLE       NOT NULL,
+  landmark    VARCHAR(160) NULL,
   geofence_m  INT          NOT NULL DEFAULT 40,
   active      BOOLEAN      NOT NULL DEFAULT TRUE,
   CONSTRAINT pk_stop PRIMARY KEY (id),
   CONSTRAINT uk_stop_code UNIQUE (code),
+  CONSTRAINT uk_stop_name UNIQUE (name),
   CONSTRAINT ck_stop_geofence CHECK (geofence_m BETWEEN 10 AND 500)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -182,6 +185,8 @@ CREATE TABLE vehicle (
   last_latitude        DOUBLE       NULL,
   last_longitude       DOUBLE       NULL,
   last_speed_kmh       DOUBLE       NULL,
+  last_accuracy_m      INT          NULL,
+  last_heading         INT          NULL,
   last_ping_at         DATETIME     NULL,
   odometer_km          INT          NOT NULL DEFAULT 0,
   version              BIGINT       NOT NULL DEFAULT 0,
@@ -433,6 +438,20 @@ CREATE TABLE gps_ping (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_gps_vehicle_time ON gps_ping (vehicle_id, recorded_at);
+
+-- A waiting rider's own position, shared with the driver coming to pick
+-- them up. Only the latest fix is kept (no history), and the row is deleted
+-- when the rider boards, stops sharing or the booking closes.
+CREATE TABLE rider_location (
+  booking_id   BIGINT   NOT NULL,
+  latitude     DOUBLE   NOT NULL,
+  longitude    DOUBLE   NOT NULL,
+  accuracy_m   INT      NULL,
+  recorded_at  DATETIME NOT NULL,
+  received_at  DATETIME NOT NULL,
+  CONSTRAINT pk_rider_location PRIMARY KEY (booking_id),
+  CONSTRAINT fk_rider_location_booking FOREIGN KEY (booking_id) REFERENCES booking (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE notification (
   id               BIGINT       NOT NULL AUTO_INCREMENT,

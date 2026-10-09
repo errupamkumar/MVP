@@ -181,7 +181,11 @@ export default function BookScreen() {
         visible={picker === 'from'}
         title="Pickup stop"
         loading={stops.isPending}
-        items={(stops.data ?? []).map((s) => ({ id: s.id, title: s.name, subtitle: `Zone ${s.zone.replace('Z', '')}` }))}
+        items={(stops.data ?? []).map((s) => ({
+          id: s.id,
+          title: s.name,
+          subtitle: `Zone ${s.zone.replace('Z', '')}${s.landmark ? ` · ${s.landmark}` : ''}`,
+        }))}
         selectedId={draft.from?.id}
         onPick={(i) => pick('from', { id: i.id, name: i.title })}
         onClose={() => setPicker(null)}

@@ -4,8 +4,11 @@ import com.srmecotech.plantride.booking.dto.RiderDtos.BookingDto;
 import com.srmecotech.plantride.booking.dto.RiderDtos.BookingSummaryDto;
 import com.srmecotech.plantride.booking.dto.RiderDtos.DriverContactDto;
 import com.srmecotech.plantride.common.config.AppProperties;
+import com.srmecotech.plantride.gps.LiveLocationService;
 import com.srmecotech.plantride.masterdata.RoutePlan;
 import com.srmecotech.plantride.masterdata.RouteResolver;
+import com.srmecotech.plantride.masterdata.Stop;
+import com.srmecotech.plantride.masterdata.Vehicle;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.RouteRef;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.StopRef;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.VehicleRef;
@@ -21,11 +24,14 @@ public class BookingMapper {
 
     private final RideProgressService progressService;
     private final RouteResolver routeResolver;
+    private final LiveLocationService liveLocations;
     private final String publicBaseUrl;
 
-    public BookingMapper(RideProgressService progressService, RouteResolver routeResolver, AppProperties properties) {
+    public BookingMapper(RideProgressService progressService, RouteResolver routeResolver,
+                         LiveLocationService liveLocations, AppProperties properties) {
         this.progressService = progressService;
         this.routeResolver = routeResolver;
+        this.liveLocations = liveLocations;
         this.publicBaseUrl = properties.publicBaseUrl().replaceAll("/+$", "");
     }
 
@@ -35,6 +41,9 @@ public class BookingMapper {
         RoutePlan plan = routeResolver.planFor(b.getRoute().getId());
         boolean live = b.isActive();
         boolean showTrip = trip != null;
+        // The cab's live position matters from assignment until the drop: to the pickup, then to the drop.
+        boolean tracking = showTrip && (b.getStatus() == BookingStatus.ASSIGNED || b.getStatus() == BookingStatus.ONBOARD);
+        Stop towards = b.getStatus() == BookingStatus.ONBOARD ? plan.stopAt(b.getToSeq()) : plan.stopAt(b.getFromSeq());
         return new BookingDto(
                 b.getId(),
                 b.getBookingCode(),
@@ -59,7 +68,9 @@ public class BookingMapper {
                 b.getTrackingToken(),
                 publicBaseUrl + "/t/" + b.getTrackingToken(),
                 showTrip ? VehicleRef.of(trip.getVehicle()) : null,
-                showTrip ? new DriverContactDto(trip.getDriver().getUser().getFullName(), trip.getDriver().getUser().getPhone()) : null,
+                showTrip ? driver(trip) : null,
+                tracking ? liveLocations.cab(trip.getVehicle(), plan, towards) : null,
+                liveLocations.sharedBy(b, plan),
                 showTrip ? trip.getTripCode() : null,
                 b.getEtaMinutes(),
                 b.getPromisedPickupAt(),
@@ -93,6 +104,12 @@ public class BookingMapper {
                 b.getCostAmount(),
                 b.getCancelReason(),
                 b.getRating());
+    }
+
+    private static DriverContactDto driver(Trip trip) {
+        Vehicle v = trip.getVehicle();
+        return new DriverContactDto(trip.getDriver().getUser().getFullName(), trip.getDriver().getUser().getPhone(),
+                v.isOwnFleet() ? "LHS own fleet" : v.getVendor().getName());
     }
 
     private static List<String> tags(String csv) {

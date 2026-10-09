@@ -119,6 +119,23 @@ export function minutes(value: number | null | undefined): string {
   return `${Math.floor(value / 60)} h ${value % 60} min`;
 }
 
+/** Straight-line distance: "40 m", "350 m", "1.2 km". */
+export function distance(metres: number | null | undefined): string {
+  if (metres == null) return '—';
+  if (metres < 1000) return `${Math.max(10, Math.round(metres / 10) * 10)} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
+}
+
+/** "just now", "40 s ago", "3 min ago", "2 h ago". */
+export function ago(seconds: number | null | undefined): string {
+  if (seconds == null) return 'never';
+  if (seconds < 10) return 'just now';
+  if (seconds < 60) return `${Math.floor(seconds)} s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86_400) return `${Math.floor(seconds / 3600)} h ago`;
+  return `${Math.floor(seconds / 86_400)} d ago`;
+}
+
 export function hoursMinutes(total: number): string {
   return `${Math.floor(total / 60)}h ${pad(total % 60)}m`;
 }

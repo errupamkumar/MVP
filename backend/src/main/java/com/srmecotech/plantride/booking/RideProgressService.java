@@ -4,6 +4,7 @@ import com.srmecotech.plantride.booking.dto.RiderDtos.ProgressStopDto;
 import com.srmecotech.plantride.booking.dto.RiderDtos.RideProgressDto;
 import com.srmecotech.plantride.masterdata.RoutePlan;
 import com.srmecotech.plantride.masterdata.RouteResolver;
+import com.srmecotech.plantride.masterdata.Stop;
 import com.srmecotech.plantride.matching.EtaCalculator;
 import com.srmecotech.plantride.matching.SeatLoad;
 import com.srmecotech.plantride.trip.Trip;
@@ -42,9 +43,9 @@ public class RideProgressService {
 
         if (trip == null) {
             List<ProgressStopDto> stops = List.of(
-                    new ProgressStopDto(booking.getFromSeq(), plan.stopAt(booking.getFromSeq()).getName(), true, false,
+                    stop(plan, booking.getFromSeq(), true, false,
                             BookingStatus.CLOSED.contains(booking.getStatus()) ? "PASSED" : "AHEAD"),
-                    new ProgressStopDto(booking.getToSeq(), plan.stopAt(booking.getToSeq()).getName(), false, true,
+                    stop(plan, booking.getToSeq(), false, true,
                             BookingStatus.CLOSED.contains(booking.getStatus()) ? "PASSED" : "AHEAD"));
             return new RideProgressDto(stage[0], stage[1], null, null, null, 0, 0,
                     plan.route().getMaxPassengers(), stops);
@@ -81,7 +82,7 @@ public class RideProgressService {
         boolean closed = BookingStatus.CLOSED.contains(booking.getStatus());
         List<ProgressStopDto> stops = shown.stream()
                 .filter(seq -> seq <= booking.getToSeq())
-                .map(seq -> new ProgressStopDto(seq, plan.stopAt(seq).getName(),
+                .map(seq -> stop(plan, seq,
                         seq == booking.getFromSeq(), seq == booking.getToSeq(),
                         closed ? "PASSED"
                                 : current == null ? (next != null && seq.equals(next) ? "NEXT" : "AHEAD")
@@ -102,6 +103,11 @@ public class RideProgressService {
         String vehicleAt = current != null ? plan.stopAt(current).getName()
                 : trip.getVehicle().getCurrentStop() == null ? null : trip.getVehicle().getCurrentStop().getName();
         return new RideProgressDto(stage[0], stage[1], etaPickup, etaDrop, vehicleAt, coRiders, seatsTaken, capacity, stops);
+    }
+
+    private static ProgressStopDto stop(RoutePlan plan, int seq, boolean pickup, boolean drop, String state) {
+        Stop s = plan.stopAt(seq);
+        return new ProgressStopDto(seq, s.getName(), s.getLatitude(), s.getLongitude(), pickup, drop, state);
     }
 
     private static String[] stage(Booking booking, Trip trip) {

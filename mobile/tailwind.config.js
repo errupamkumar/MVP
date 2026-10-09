@@ -3,6 +3,9 @@ module.exports = {
   // Colours are taken from the SRM ECO TECH proposal decks so the app looks like what LHS already saw.
   content: ['./src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // The app is light-only. 'class' (not Tailwind's default 'media') stops NativeWind's web runtime from
+  // throwing "Cannot manually set color scheme, as dark mode is type 'media'" in the Expo dev server.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

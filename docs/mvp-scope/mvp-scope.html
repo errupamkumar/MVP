@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plant Ride MVP Scope</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  /* Print layout: A4 scope document. Cover, scope at a glance, then one block per screen
+     (Users → Driver → Admin), each pairing the real screenshot with purpose, scope, rules and exclusions. */
+  :root {
+    --ink: #16202B; --ink-2: #34465A; --muted: #5E6D7D; --line: #D6DFE8; --bg: #F3F6F9;
+    --accent: #E85D04; --accent-soft: #FFEDE0; --teal: #007A6D; --teal-soft: #DDF5F1;
+    --desk: #34465A; --desk-soft: #E6ECF2; --danger: #C62828; --danger-soft: #FDECEA;
+    --font-display: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", Calibri, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  }
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; color: var(--ink-2); font: 9.6pt/1.5 var(--font-body); background: #fff; }
+  h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink); margin: 0; line-height: 1.12; }
+  p { margin: 0; }
+  code { font-family: var(--font-mono); font-size: 0.9em; color: var(--ink); }
+  b { color: var(--ink); font-weight: 600; }
+  .eyebrow { font: 600 7.4pt/1.2 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---------- cover ---------- */
+  .cover { height: 258mm; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; }
+  .cover-top { display: grid; gap: 10mm; padding-top: 18mm; }
+  .brand { display: flex; align-items: center; gap: 4mm; }
+  .logo { width: 13mm; height: 13mm; border-radius: 3mm; background: var(--accent); color: #fff; display: grid; place-items: center; font: 700 20pt/1 var(--font-display); }
+  .brand span { font: 700 15pt/1.1 var(--font-display); color: var(--ink); }
+  .cover h1 { font-size: 44pt; letter-spacing: -0.01em; }
+  .cover .sub { font-size: 13pt; color: var(--ink-2); max-width: 150mm; line-height: 1.45; }
+  .lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; }
+  .lane { border-top: 2.2mm solid var(--c); padding-top: 3.5mm; display: grid; gap: 1.5mm; }
+  .lane .n { font: 500 8pt/1 var(--font-mono); color: var(--c); }
+  .lane h3 { font-size: 15pt; }
+  .lane p { font-size: 9pt; }
+  .lane.u { --c: var(--accent); } .lane.d { --c: var(--teal); } .lane.a { --c: var(--desk); }
+  .meta { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .meta td { padding: 2.2mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  .meta td:first-child { width: 42mm; color: var(--muted); }
+
+  /* ---------- sections ---------- */
+  .section { page-break-before: always; }
+  .section-head { display: grid; gap: 2.5mm; padding-bottom: 4mm; margin-bottom: 5mm; border-bottom: 0.8mm solid var(--c, var(--ink)); }
+  .section-head h2 { font-size: 24pt; }
+  .section-head p { max-width: 160mm; font-size: 10pt; }
+  .section.u { --c: var(--accent); --soft: var(--accent-soft); }
+  .section.d { --c: var(--teal); --soft: var(--teal-soft); }
+  .section.a { --c: var(--desk); --soft: var(--desk-soft); }
+  h3.sub { font-size: 13pt; margin: 6mm 0 2.5mm; }
+
+  table.grid { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+  table.grid th, table.grid td { text-align: left; vertical-align: top; padding: 1.8mm 2.2mm; border-bottom: 1px solid var(--line); }
+  table.grid th { font: 600 7pt/1.3 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+  table.grid tr { break-inside: avoid; }
+  table.grid td.num { font-family: var(--font-mono); white-space: nowrap; color: var(--ink); }
+  .tick { color: var(--teal); font-weight: 600; white-space: nowrap; }
+  .later { color: var(--muted); font-weight: 600; white-space: nowrap; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 2mm; }
+  .kpi { background: var(--bg); border-radius: 2mm; padding: 3mm 3.5mm; display: grid; gap: 0.5mm; }
+  .kpi b { font: 700 18pt/1 var(--font-display); color: var(--ink); }
+  .kpi span { font-size: 8pt; color: var(--muted); }
+
+  /* ---------- screen blocks ---------- */
+  .screen { break-inside: avoid; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6mm; padding: 5mm 0; border-bottom: 1px solid var(--line); }
+  .screen:last-child { border-bottom: 0; }
+  .shots { display: flex; gap: 3mm; align-items: flex-start; }
+  .phone { width: 46mm; border: 1.6mm solid var(--ink); border-radius: 5mm; overflow: hidden; background: var(--bg); }
+  .phone img { display: block; width: 100%; height: auto; }
+  .spec { display: grid; gap: 2.6mm; align-content: start; min-width: 0; }
+  .spec-head { display: flex; align-items: baseline; gap: 3mm; }
+  .id { font: 700 9pt/1 var(--font-mono); color: #fff; background: var(--c); border-radius: 1.2mm; padding: 1.4mm 2mm; }
+  .screen.exc .id { background: var(--danger); }
+  .spec h3 { font-size: 15pt; }
+  .purpose { font-size: 9.8pt; color: var(--ink); }
+  .spec h4 { font: 600 7pt/1.3 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1mm; }
+  .spec ul { margin: 0; padding-left: 4mm; display: grid; gap: 0.6mm; }
+  .spec li::marker { color: var(--c); }
+  .rules { background: var(--soft); border-radius: 2mm; padding: 2.4mm 3.2mm; }
+  .rules ul { gap: 0.4mm; }
+  .notin { font-size: 8.8pt; color: var(--muted); }
+  .notin b { color: var(--muted); }
+
+  /* desk screens: image across the top, spec in two columns below */
+  .screen.wide { grid-template-columns: minmax(0, 1fr); gap: 5mm; page-break-before: always; border-bottom: 0; padding-top: 0; }
+  .section-head + .screen.wide { page-break-before: auto; }
+  .screen.wide .below { display: grid; grid-template-columns: minmax(0, 1fr) 66mm; gap: 7mm; align-items: start; }
+  .screen.wide .below.solo { grid-template-columns: minmax(0, 1fr); }
+  .aside { margin: 0; display: grid; gap: 1.5mm; }
+  .aside figcaption { font-size: 7.6pt; color: var(--muted); }
+  .desk { border: 1px solid var(--line); border-radius: 2mm; overflow: hidden; }
+  .desk img { display: block; width: 100%; height: auto; }
+  .screen.wide .below.solo .spec { grid-template-columns: 1fr 1fr; column-gap: 7mm; }
+  .screen.wide .below.solo .spec .full { grid-column: 1 / -1; }
+
+  .callout { border-left: 1.2mm solid var(--c, var(--accent)); background: var(--bg); padding: 3mm 4mm; border-radius: 0 2mm 2mm 0; font-size: 9.4pt; margin: 3mm 0; break-inside: avoid; }
+  .toc { display: grid; gap: 1.4mm; font-size: 9.6pt; margin-top: 3mm; }
+  .toc div { display: flex; gap: 3mm; border-bottom: 1px dotted var(--line); padding-bottom: 1.2mm; }
+  .toc div span:first-child { font-family: var(--font-mono); color: var(--muted); width: 16mm; white-space: nowrap; }
+  .toc div span:last-child { margin-left: auto; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- =============================================================== COVER -->
+<section class="cover">
+  <div class="cover-top">
+    <div class="brand"><div class="logo">P</div><span>Plant Ride</span></div>
+    <div>
+      <p class="eyebrow">SRM ECO TECH · for LHS</p>
+      <h1>MVP scope</h1>
+    </div>
+    <p class="sub">What the Plant Ride MVP delivers, screen by screen: the <b>user</b> (employee) app first, then the <b>driver</b> app, then the <b>admin</b> console at the transport desk. Every screen is shown as it runs today, with what it is for, what is in scope, the rules it enforces and what is left for a later phase.</p>
+    <div class="lanes">
+      <div class="lane u"><span class="n">Part 1 · 12 screens</span><h3>Users</h3><p>Employees book, board with an OTP, ride, rate and see the charge to their cost centre.</p></div>
+      <div class="lane d"><span class="n">Part 2 · 8 screens</span><h3>Driver</h3><p>Start-of-duty compliance check, pickups in route order, OTP boarding, issues, sign-off.</p></div>
+      <div class="lane a"><span class="n">Part 3 · 7 screens</span><h3>Admin</h3><p>Live fleet board, queue and approvals, billing by cost centre, routes, rules and audit.</p></div>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td>Product</td><td>Plant Ride: smart cab booking, pooling, fleet compliance and cost-centre billing inside the LHS plant</td></tr>
+    <tr><td>Scope baseline</td><td>Proposal decks <i>Plant Ride: Solution Proposal</i> and <i>User Journey Walkthrough</i>; MVP = the deck's Phase 2 pilot scope plus cost-centre billing</td></tr>
+    <tr><td>Status</td><td>Built and verified; screenshots taken from the running MVP</td></tr>
+    <tr><td>Date</td><td>30 September 2026</td></tr>
+  </table>
+</section>
+
+<!-- =============================================================== AT A GLANCE -->
+<section>
+  <div class="section-head">
+    <p class="eyebrow">Overview</p>
+    <h2>Scope at a glance</h2>
+    <p>The MVP covers one site, the three configured routes and the full trip lifecycle: booking, matching, pooling within the occupancy cap, OTP boarding, drop, cost allocation and audit. It runs as one Expo app (Android, iOS and web) on a Spring Boot API with MySQL.</p>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><b>3</b><span>user roles with their own app: user, driver, admin (plus a desk-only role)</span></div>
+    <div class="kpi"><b>27</b><span>screens and screen states in scope, shown in this document</span></div>
+    <div class="kpi"><b>3</b><span>routes, 9 vehicles, own and vendor fleet in the demo data</span></div>
+    <div class="kpi"><b>3</b><span>riders per pick-up run at most (configurable per route)</span></div>
+  </div>
+
+  <h3 class="sub">Who uses what</h3>
+  <table class="grid">
+    <tr><th>Role</th><th>Signs in with</th><th>Device</th><th>Screens</th></tr>
+    <tr><td><b>User</b> (employee rider)</td><td>P. No. and password</td><td>Phone (Android, iOS) or browser</td><td>Home, Book, Ride options, Booking, My trips, Alerts, Me</td></tr>
+    <tr><td><b>Driver</b></td><td>Driver ID and password</td><td>Phone, large touch targets</td><td>Trips (duty check, queue, boarding), Issues, Duty</td></tr>
+    <tr><td><b>Admin</b> (fleet admin and desk)</td><td>Username and password</td><td>Web console on a laptop or desk monitor</td><td>Live board, Queue, Billing, Routes &amp; rules</td></tr>
+    <tr><td><b>Desk operator</b></td><td>Username and password</td><td>Web console or gate tablet</td><td>Live board, Queue (no billing or configuration)</td></tr>
+  </table>
+
+  <h3 class="sub">Contents</h3>
+  <div class="toc">
+    <div><span>Part 1</span><span>Users (employee app): U1–U12</span><span>page 4</span></div>
+    <div><span>Part 2</span><span>Driver app: D1–D8</span><span>page 10</span></div>
+    <div><span>Part 3</span><span>Admin console: A1–A7</span><span>page 15</span></div>
+    <div><span>Part 4</span><span>Business rules, not in the MVP, and how the scope was verified</span><span>page 22</span></div>
+  </div>
+  <h3 class="sub" style="page-break-before: always">Scope against the proposal</h3>
+  <table class="grid">
+    <tr><th>Capability in the proposal</th><th>MVP</th><th>How it is delivered</th></tr>
+    <tr><td>Book in under 30 s with HR-prefilled, editable details; book for a guest</td><td class="tick">In scope</td><td>Employee record stands in for HRMS; guest rides charge the host's cost centre</td></tr>
+    <tr><td>Ride options: shuttle (information), shared, exclusive with approval</td><td class="tick">In scope</td><td>Shared riders join cabs already on the route (pooling)</td></tr>
+    <tr><td>Scheduled rides up to 7 days ahead</td><td class="tick">In scope</td><td>Dispatched 20 min before pickup; the app offers five quick time choices</td></tr>
+    <tr><td>Route sequencing, stops in order, leg times, geofences</td><td class="tick">In scope</td><td>Master data, editable by the admin without a release</td></tr>
+    <tr><td>Occupancy rule: max 3 per pick-up run</td><td class="tick">In scope</td><td>Hard rule per route segment; cannot be overridden by the desk</td></tr>
+    <tr><td>Matching engine that explains its decisions</td><td class="tick">In scope</td><td>Filter, score, suggest; the reason is stored on every booking</td></tr>
+    <tr><td>Confirmation with vehicle number, driver contact, OTP, tracking link</td><td class="tick">In scope</td><td>Tracking link shows the vehicle only and expires with the trip</td></tr>
+    <tr><td>Driver app: sign-on check, route-order queue, OTP, no-show, issues, SOS</td><td class="tick">In scope</td><td>GPS pings while on duty; geofence arrival at stops</td></tr>
+    <tr><td>Fleet compliance with expiry alerts and a block on expiry</td><td class="tick">In scope</td><td>Alerts at 30, 7 and 1 days; expired documents block duty and dispatch</td></tr>
+    <tr><td>Command centre: fleet on one screen, KPIs, alerts, overrides</td><td class="tick">In scope</td><td>Web console, refreshed every 5 s</td></tr>
+    <tr><td>Cost allocation by cost centre, budgets, ERP export, vendor bill vs GPS</td><td class="tick">In scope</td><td>Distance-based split; CSV export shaped for SAP</td></tr>
+    <tr><td>Notifications and audit trail</td><td class="tick">In scope</td><td>In-app notifications; every state change audited</td></tr>
+    <tr><td>Hindi UI, offline driver app, SSO/HRMS/SAP live integrations, plant map, demand forecasting</td><td class="later">Later phase</td><td>See the last section, <i>Not in the MVP</i></td></tr>
+  </table>
+
+</section>
+
+<!-- =============================================================== USERS -->
+<section class="section u">
+  <div class="section-head">
+    <p class="eyebrow">Part 1 · Rider app</p>
+    <h2>Users (employee) screens</h2>
+    <p>The employee's app: book in under 30 seconds, see the cab and driver, share a tracking link, board with a 4-digit OTP, rate the ride and see what it cost. Four tabs: <b>Home</b>, <b>Rides</b>, <b>Alerts</b>, <b>Me</b>.</p>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u01-login.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U1</span><h3>Sign in</h3></div>
+      <p class="purpose">One sign-in screen for every role; the app opens the right side for the person.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Sign in with P. No. (users), driver ID (drivers) or username (desk)</li>
+        <li>One-tap demo accounts below the form</li>
+        <li>Session lasts 12 hours (one shift); server address shown for support</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul><li>Each role lands in its own app and cannot open another role's screens.</li></ul></div>
+      <p class="notin"><b>Not in the MVP:</b> SSO or Active Directory login; password reset flow.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u02-home.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U2</span><h3>Home</h3></div>
+      <p class="purpose">The starting point for every ride.</p>
+      <div><h4>In scope</h4><ul>
+        <li><b>Where to?</b> button opens booking</li>
+        <li>Saved places with this month's trip counts; one tap starts a booking</li>
+        <li>Upcoming ride shortcut</li>
+        <li>The employee's cost centre, shown before booking</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul><li>Every ride is charged to this cost centre on measured GPS distance.</li><li>Booking is disabled while the employee is paused for no-shows (U12).</li></ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u05-book-filled.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u04-stop-picker.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U3</span><h3>Book a ride</h3></div>
+      <p class="purpose">Choose where from, where to, when and how many riders on one screen.</p>
+      <div><h4>In scope</h4><ul>
+        <li>From and To from a searchable stop list with zones</li>
+        <li>When: Now, In 30 min, In 1 hour, Tomorrow 08:00, Tomorrow 17:30</li>
+        <li>Seats (riders travelling)</li>
+        <li>Rider details prefilled from HR, editable; <b>Booking for a guest</b></li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>The route is resolved from the stop sequence.</li>
+        <li>Pick-up runs carry 3 riders at most; a larger group needs an exclusive cab.</li>
+        <li>A guest ride is charged to the host's cost centre.</li>
+      </ul></div>
+      <p class="notin"><b>Not in the MVP:</b> a free date and time picker in the app (the API accepts any time up to 7 days ahead); recurring bookings.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u07-options.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u08-options-confirm.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U4</span><h3>Choose your ride</h3></div>
+      <p class="purpose">Compare the ways to travel and confirm one.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Route summary: distance, time, pickup, seats</li>
+        <li><b>Shuttle</b>: timetable information only, walk up</li>
+        <li><b>Shared cab</b>: the cab, its ETA and seats taken</li>
+        <li><b>Exclusive cab</b>: whole cab, needs approval</li>
+        <li>Cost centre, rider and contact shown before <b>Confirm ride</b></li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>A full cab is never offered; the rider gets the next cab and its ETA.</li>
+        <li>A repeated tap on Confirm returns the same booking, never a duplicate.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u09-booked.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u10-otp-link.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U5</span><h3>Ride confirmed</h3></div>
+      <p class="purpose">Everything the rider needs to meet the cab, without phoning the desk.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Booking code and live status with a five-stage progress bar</li>
+        <li>Vehicle number, cab code, driver name and <b>Call</b></li>
+        <li>Promised pickup time</li>
+        <li>4-digit <b>boarding OTP</b></li>
+        <li><b>Live tracking link</b> with Share trip and Copy link</li>
+        <li><b>Cancel ride</b> before boarding</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul><li>The screen refreshes every 5 seconds.</li><li>An exclusive request shows <i>Waiting for approval</i> until the desk or HOD releases it.</li></ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u11-tracking-page.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u20-tracking-ended.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U6</span><h3>Shared tracking page</h3></div>
+      <p class="purpose">A public page anyone with the link can open, with no login.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Stage, route, vehicle number, cab code, last seen stop, stop list</li>
+        <li>Refreshes every 5 seconds</li>
+        <li><i>This trip has ended</i> once the ride closes</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Tracks vehicles, not people: no names or phone numbers are served.</li>
+        <li>The link expires when the trip closes.</li>
+        <li>The page cannot be embedded in another site.</li>
+      </ul></div>
+      <p class="notin"><b>Not in the MVP:</b> a live map of the plant roads (stop progress is schematic).</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u12-cab-arrived.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u13-on-trip.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U7</span><h3>Cab arrived and trip in progress</h3></div>
+      <p class="purpose">The booking screen changes by itself as the trip moves on.</p>
+      <div><h4>In scope</h4><ul>
+        <li><b>Your cab has arrived</b>: OTP in large digits to show the driver, riders on this pick-up</li>
+        <li><b>Trip in progress</b>: drop ETA, vehicle, driver, stops on this run, co-riders</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>The cab waits the route's wait time (5 min on Route 1); then the driver may mark a no-show.</li>
+        <li>Seats above the cap are held free by policy.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u18-rating.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u19-rated.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U8</span><h3>Trip complete and rating</h3></div>
+      <p class="purpose">Close the ride: what it cost, who paid, and how it went.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Route, times, distance and ride type</li>
+        <li>Amount charged and the cost centre</li>
+        <li>1–5 stars, quick tags (On time, Clean cab, Safe driving, Long wait, Hard to find) and a note</li>
+        <li>Booking record: code, rider, distance, cost centre</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Trip cost = GPS route km × rate card, split across riders by distance ridden; shares add up to the paisa.</li>
+        <li>Ratings feed the vendor SLA report.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u21-trips-past.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u22-trips-upcoming.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U9</span><h3>My trips</h3></div>
+      <p class="purpose">Every ride the employee has taken or booked, for expense queries.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Upcoming, Past and Cancelled tabs</li>
+        <li>Each ride: date, route, distance, cab, cost, rating; tap for the full record</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul><li>Ride history is kept for billing and safety only.</li></ul></div>
+      <p class="notin"><b>Not in the MVP:</b> downloadable monthly statement for the employee.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u23-alerts.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U10</span><h3>Alerts</h3></div>
+      <p class="purpose">Every step of a ride as a notification.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Cab assigned (vehicle, driver, phone, OTP), cab at the stop, trip started, arrived, charged</li>
+        <li>Scheduled ride confirmations; unread badge on the tab</li>
+        <li>Delivery status logged for every notification</li>
+      </ul></div>
+      <p class="notin"><b>Not in the MVP:</b> push, SMS and WhatsApp delivery (in-app only; gateways plug in behind the notification service).</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u24-me.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U11</span><h3>Me</h3></div>
+      <p class="purpose">The employee's profile and the rules that apply to them.</p>
+      <div><h4>In scope</h4><ul>
+        <li>P. No., email, contact, grade, cost centre</li>
+        <li>Whether exclusive rides need approval</li>
+        <li>No-shows in the last 30 days against the allowance</li>
+        <li>Privacy note and <b>Sign out</b></li>
+      </ul></div>
+      <p class="notin"><b>Not in the MVP:</b> editing the profile in the app (corrections go through HR); Hindi language option.</p>
+    </div>
+  </div>
+
+  <div class="screen exc">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/u16-full-queued.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/u25-booking-paused.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">U12</span><h3>Exception states</h3></div>
+      <p class="purpose">What the user sees when a ride cannot go ahead normally.</p>
+      <div><h4>In scope</h4><ul>
+        <li><b>Every cab is busy or full</b>: the rider waits in the queue and gets the next free cab automatically; the desk sees the request</li>
+        <li><b>Booking is paused</b>: after 3 no-shows in 30 days; the rider contacts the desk</li>
+        <li><b>Waiting for approval</b>: exclusive ride until released</li>
+        <li>Desk cancellation shows the desk's reason</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul><li>The engine retries waiting requests every 15 seconds; unserved requests expire after 90 minutes.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================== DRIVER -->
+<section class="section d">
+  <div class="section-head">
+    <p class="eyebrow">Part 2 · Driver app</p>
+    <h2>Driver screens</h2>
+    <p>Built for use in the cab: large targets usable with gloves, pickups in route order, and a permanent SOS button while on duty. Three tabs: <b>Trips</b>, <b>Issues</b>, <b>Duty</b>.</p>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d01-login.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D1</span><h3>Sign in</h3></div>
+      <p class="purpose">The shared sign-in screen, with the driver ID.</p>
+      <div><h4>In scope</h4><ul><li>Driver ID and password; 12-hour session</li><li>Lands on the start-of-duty check, or on the trip queue if already on duty</li></ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d02-duty-check.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/d04-checklist.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D2</span><h3>Start-of-duty check</h3></div>
+      <p class="purpose">Compliance is checked here, before dispatch, not at the gate.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Driver's documents with validity: driving licence, gate pass</li>
+        <li>Vehicle choice; unavailable vehicles greyed out with the reason</li>
+        <li>Vehicle documents flagged ahead of expiry (e.g. PUC in 6 days)</li>
+        <li>Five-point check: tyres, lights, seat belts, fuel, first-aid kit and extinguisher</li>
+        <li>Opening odometer, prefilled from the last reading</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>An incomplete check is refused.</li>
+        <li>Expired licence, gate pass, insurance, fitness or PUC blocks duty (D8).</li>
+        <li>One driver per vehicle and one vehicle per driver at a time.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d05-queue.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/d07-queue-three.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D3</span><h3>Trip queue</h3></div>
+      <p class="purpose">The screen a driver lives in all day.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Header: vehicle, route, on board, seats left, speed limit, status</li>
+        <li>Next action as one large button, e.g. <b>Arrived at Gate 2</b></li>
+        <li>Stops in route order with pickups, drops and ETAs</li>
+        <li><b>Navigate</b> (opens map directions) and <b>SOS</b></li>
+        <li>New riders appear automatically</li>
+        <li><i>Slow down</i> banner on overspeed; <i>Location is off</i> banner</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Riders already waiting are matched the moment the driver signs on.</li>
+        <li>The sequence comes from the route master, not the driver.</li>
+        <li>GPS pings are sent while on duty; overspeed alerts the desk.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d08-at-gate2.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/d09-wrong-otp.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D4</span><h3>At the stop: OTP boarding and no-show</h3></div>
+      <p class="purpose">Board the right rider into the right cab.</p>
+      <div><h4>In scope</h4><ul>
+        <li>One card per rider: name, P. No., destination, <b>Call</b></li>
+        <li>OTP entry and <b>Board</b></li>
+        <li>No-show countdown, then <b>Mark no-show</b></li>
+        <li>Clear message on a wrong code with tries left; <i>Boarding locked</i> after too many</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>4-digit OTP per booking; 5 wrong codes lock boarding for that rider.</li>
+        <li>The driver cannot leave a stop while a rider there is still waiting.</li>
+        <li>No-show allowed only after the route's wait time.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d10-boarded.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/d12-trip-closed.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D5</span><h3>On trip, drops and trip close</h3></div>
+      <p class="purpose">Drive the run and drop each rider in order.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Boarded riders listed as <i>OTP OK</i>; on board count updates</li>
+        <li><b>Arrived at …</b> for each drop, with distance and time to it</li>
+        <li>After the last drop: <i>Waiting for pickups</i> with today's trips, riders and duty time</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>A GPS ping inside the stop's geofence records arrival automatically; the button works everywhere.</li>
+        <li>The last drop closes the trip, calculates the cost and expires tracking links.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d14-issue-details.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D6</span><h3>Issues and SOS</h3></div>
+      <p class="purpose">Tell the desk what went wrong, from the cab.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Breakdown, Accident, Delay, Fuel entry, Other, with details</li>
+        <li><b>Send to transport desk</b></li>
+        <li><b>SOS</b> (Trips tab) sends cab and location to the desk and plant security, after a confirmation</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>A breakdown takes the cab off-road and puts its riders back in the queue from the last stop reached.</li>
+        <li>Every issue raises a desk alert.</li>
+      </ul></div>
+      <p class="notin"><b>Not in the MVP:</b> photo attachments; offline buffering of issues and GPS.</p>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d16-close-duty.jpg" alt=""></div><div class="phone"><img src="../user-journey/img/d17-signed-off.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D7</span><h3>Duty and sign-off</h3></div>
+      <p class="purpose">End the shift with a distance check the vendor bill relies on.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Current duty: vehicle, start time, duty hours against the limit, trips, riders, distance, opening odometer</li>
+        <li>Close duty: closing odometer and fuel drawn</li>
+        <li>Duty closed summary with the odometer-vs-GPS check</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li><i>Finish your trip first</i>: sign-off is blocked with riders on board.</li>
+        <li>Duty limit 9 hours; the engine will not assign a trip that would break it.</li>
+        <li>GPS km is the contractual source for billing.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="screen exc">
+    <div class="shots"><div class="phone"><img src="../user-journey/img/d18-duty-blocked.jpg" alt=""></div></div>
+    <div class="spec">
+      <div class="spec-head"><span class="id">D8</span><h3>Duty blocked</h3></div>
+      <p class="purpose">An expired document stops the driver before they reach a rider.</p>
+      <div><h4>In scope</h4><ul>
+        <li><i>Duty is blocked</i> with the document and its expiry date</li>
+        <li>Expired items shown in red on the document list</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Expiry blocks duty and dispatch; it is not just a warning.</li>
+        <li>Alerts go to the desk at 30, 7 and 1 days before expiry and on expiry.</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================== ADMIN -->
+<section class="section a">
+  <div class="section-head">
+    <p class="eyebrow">Part 3 · Web console</p>
+    <h2>Admin screens</h2>
+    <p>The transport desk's console, in a browser on a laptop or desk monitor (a tablet layout works at the gate). The admin sees four sections; a desk operator sees the first two.</p>
+  </div>
+
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a02-board.jpg" alt=""></div>
+    <div class="below">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A1</span><h3>Live board</h3></div>
+      <p class="purpose full">The whole fleet on one screen, refreshed every 5 seconds.</p>
+      <div><h4>In scope</h4><ul>
+        <li>KPIs: vehicles in service, seat occupancy, average wait, on-time pickups, riders waiting, open alerts</li>
+        <li>Every vehicle: status, route, position, riders on board, driver</li>
+        <li><b>Take off-road</b> / <b>Back on road</b></li>
+        <li>Needs attention: document expiry, overspeed, breakdown, SOS, long waits; <b>Acknowledge</b> and <b>Resolve</b></li>
+        <li>Waiting riders with a link to the queue</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Acknowledging an alert does not unblock a vehicle with an expired document.</li>
+        <li>Each alert shows its severity, age and source.</li>
+      </ul></div>
+    </div>
+    <figure class="aside"><div class="desk"><img src="../user-journey/img/a10-alert-ack.jpg" alt=""></div><figcaption>Alert acknowledged by the admin</figcaption></figure></div>
+  </div>
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a04-queue.jpg" alt=""></div>
+    <div class="below">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A2</span><h3>Queue and approvals</h3></div>
+      <p class="purpose full">Every rider waiting for a cab or for approval, with the engine's reason.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Request cards: status, ride type, route, rider, P. No., cost centre, minutes waiting</li>
+        <li>The engine's note on why no cab was assigned</li>
+        <li>Exclusive rides: <b>Approve</b> or <b>Reject</b> with a reason</li>
+        <li><b>Cancel</b> with a reason shown to the rider</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>An approved exclusive ride waits for an empty cab.</li>
+        <li>Every approval, rejection and cancellation is audited.</li>
+      </ul></div>
+    </div>
+    <figure class="aside"><div class="desk"><img src="../user-journey/img/a12-approved.jpg" alt=""></div><figcaption>After Approve: waiting for an empty cab</figcaption></figure></div>
+  </div>
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a08-candidates.jpg" alt=""></div>
+    <div class="below">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A3</span><h3>Assign a cab (desk override)</h3></div>
+      <p class="purpose full">The desk can place a rider on a specific cab, within the hard rules.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Every vehicle listed as feasible (ETA, seats taken, <b>Assign</b>) or refused with the reason</li>
+        <li>Cancel dialog with a reason field</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Hard rules still apply to an override: occupancy cap, documents, duty hours.</li>
+        <li>A cab at its 3-rider cap is refused, e.g. <i>C-12 is at its 3-rider cap</i>.</li>
+      </ul></div>
+    </div>
+    <figure class="aside"><div class="desk"><img src="../user-journey/img/a09-cancel-reason.jpg" alt=""></div><figcaption>Cancel with a reason shown to the rider</figcaption></figure></div>
+  </div>
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a15-export.jpg" alt=""></div>
+    <div class="below solo">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A4</span><h3>Billing and cost centres</h3></div>
+      <p class="purpose full">Every kilometre on a cost centre, ready for the ERP. Admin only.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Month selector with Draft or Closed status</li>
+        <li>Totals: trips, rides charged, GPS km, cost, riders per trip</li>
+        <li>Charges by cost centre with budget bars</li>
+        <li>Vendor bill vs GPS, with gap and dispute flag</li>
+        <li>Compliance watch; <b>Export to SAP (CSV)</b></li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Budget warning at 80%, over budget at 100%.</li>
+        <li>GPS km is the contractual source; a vendor claim above GPS is flagged.</li>
+        <li>One cost allocation per ride; no double billing.</li>
+      </ul></div>
+      <p class="notin full"><b>Not in the MVP:</b> direct posting to SAP (CSV export only); closing a month from the screen.</p>
+    </div>
+    </div>
+  </div>
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a17-rule-change.jpg" alt=""></div>
+    <div class="below">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A5</span><h3>Routes and rules</h3></div>
+      <p class="purpose full">Configuration, not code: changes apply immediately and are audited. Admin only.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Route chips; route summary (type, stops, time, distance, frequency)</li>
+        <li>Rules per route: max passengers, max wait, max detour, zone speed limit; <b>Undo</b> and <b>Save rules</b></li>
+        <li>Stop sequence with leg minutes and km; reorder and <b>Save sequence</b></li>
+        <li>Document compliance list for drivers and vehicles</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>Saving rules asks for confirmation and shows each change, before and after.</li>
+        <li>Two admins cannot overwrite each other: a stale save is refused.</li>
+        <li>New trips follow a new sequence; vehicles never double back.</li>
+      </ul></div>
+    </div>
+    <figure class="aside"><div class="desk"><img src="../user-journey/img/a19-sequence.jpg" alt=""></div><figcaption>Stop sequence and document compliance</figcaption></figure></div>
+  </div>
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a21-audit.jpg" alt=""></div>
+    <div class="below">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A6</span><h3>Audit trail and demo tools</h3></div>
+      <p class="purpose full">Who did what, when, for every state change.</p>
+      <div><h4>In scope</h4><ul>
+        <li>Bookings, cancellations, approvals, duty start and end, trips, alerts, rule changes, with person and time</li>
+        <li><b>Reset demo data</b> (demo builds only)</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul>
+        <li>The audit trail is written by the server, not the screens.</li>
+        <li>The reset tool is switched off outside the demo.</li>
+      </ul></div>
+    </div>
+    <figure class="aside"><div class="desk"><img src="../user-journey/img/a22-demo-tools.jpg" alt=""></div><figcaption>Demo tools: reset demo data</figcaption></figure></div>
+  </div>
+  <div class="screen wide">
+    <div class="desk"><img src="../user-journey/img/a23-desk-role.jpg" alt=""></div>
+    <div class="below solo">
+    <div class="spec">
+      <div class="spec-head full"><span class="id">A7</span><h3>Roles: admin and desk operator</h3></div>
+      <p class="purpose full">The same console, trimmed to the person's role.</p>
+      <div><h4>In scope</h4><ul>
+        <li><b>Admin</b>: Live board, Queue, Billing, Routes &amp; rules</li>
+        <li><b>Desk operator</b>: Live board and Queue</li>
+      </ul></div>
+      <div class="rules"><h4>Rules</h4><ul><li>Enforced in the app and on the server.</li></ul></div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================== RULES / OUT / VERIFY -->
+<section class="section">
+  <div class="section-head">
+    <p class="eyebrow">Part 4</p>
+    <h2>Business rules, not in the MVP, and verification</h2>
+  </div>
+
+  <h3 class="sub">Business rules in the MVP</h3>
+  <table class="grid">
+    <tr><th>Rule</th><th>Value in the MVP</th><th>Where it is set</th></tr>
+    <tr><td>Max riders per pick-up run</td><td class="num">3</td><td>Per route (Routes &amp; rules)</td></tr>
+    <tr><td>Wait at a stop before a no-show</td><td class="num">5 min</td><td>Per route</td></tr>
+    <tr><td>Extra minutes a new pickup may add for riders on board</td><td class="num">7 min</td><td>Per route</td></tr>
+    <tr><td>Zone speed limit (overspeed raises a desk alert)</td><td class="num">20 km/h</td><td>Per route (Route 1)</td></tr>
+    <tr><td>Wrong OTP attempts before boarding locks</td><td class="num">5</td><td>System</td></tr>
+    <tr><td>No-shows that pause booking</td><td class="num">3 in 30 days</td><td>Setting</td></tr>
+    <tr><td>Driver duty limit</td><td class="num">9 h</td><td>Setting</td></tr>
+    <tr><td>Matching sweep for waiting riders</td><td class="num">every 15 s</td><td>System</td></tr>
+    <tr><td>Waiting request expires if unserved</td><td class="num">90 min</td><td>Setting</td></tr>
+    <tr><td>Scheduled ride dispatched before pickup</td><td class="num">20 min</td><td>Setting</td></tr>
+    <tr><td>Document expiry alerts</td><td class="num">30 / 7 / 1 days</td><td>System; expiry blocks duty and dispatch</td></tr>
+    <tr><td>Budget flags</td><td class="num">80% / 100%</td><td>System</td></tr>
+    <tr><td>Cost split for shared rides</td><td class="num">by distance</td><td>Setting (equal split also supported)</td></tr>
+    <tr><td>Session length</td><td class="num">12 h</td><td>System</td></tr>
+  </table>
+
+  <h3 class="sub">Not in the MVP</h3>
+  <table class="grid">
+    <tr><th>Area</th><th>In the MVP</th><th>Planned next</th></tr>
+    <tr><td>Notifications</td><td>In-app, with delivery log</td><td>Push, SMS and WhatsApp gateways</td></tr>
+    <tr><td>Driver app offline</td><td>Needs a connection; late GPS pings are accepted</td><td>Local queue for the offline stretch</td></tr>
+    <tr><td>Maps</td><td>Schematic stop progress; one-tap navigation</td><td>Plant road map with live position</td></tr>
+    <tr><td>Language</td><td>English</td><td>Hindi</td></tr>
+    <tr><td>Integrations</td><td>HRMS, SSO and SAP simulated (seeded employees, password login, CSV export)</td><td>SSO/AD login, HRMS sync, SAP posting</td></tr>
+    <tr><td>Booking time</td><td>Five quick choices in the app</td><td>Free date and time picker</td></tr>
+    <tr><td>Optimisation</td><td>Rules and scoring on configured leg times</td><td>Learned ETAs, demand forecasting, route solver</td></tr>
+    <tr><td>Scale and operations</td><td>Single MySQL database; demo data reseeded on start</td><td>Schema migrations, GPS store and cache, load test at shift change</td></tr>
+    <tr><td>Security hardening</td><td>Suitable for a demo</td><td>Production secrets, restricted origins, httpOnly web session, refresh tokens, demo reset off</td></tr>
+  </table>
+
+  <h3 class="sub">How the scope was verified</h3>
+  <table class="grid">
+    <tr><th>Check</th><th>Result</th></tr>
+    <tr><td>Backend tests: unit, web slice and MySQL integration, including a race for the last seat</td><td class="num">43 / 43 pass</td></tr>
+    <tr><td>End-to-end API check of the full trip</td><td class="num">43 checks pass</td></tr>
+    <tr><td>Scripted walk of every screen in this document on the web build</td><td>All screens reached; screenshots in this document come from that run</td></tr>
+    <tr><td>Recorded journey videos (user, driver, admin)</td><td>All three complete without errors</td></tr>
+  </table>
+
+  <div class="callout" style="--c: var(--danger)"><b>Open item found in review.</b> On Routes &amp; rules, the green "Saved" confirmation disappears immediately after a successful save. The change is saved and audited; only the confirmation is lost. Small fix, scheduled with the next change.</div>
+</section>
+
+</body>
+</html>

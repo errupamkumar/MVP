@@ -1,5 +1,7 @@
 package com.srmecotech.plantride.trip.dto;
 
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.CabLocationDto;
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.RiderLocationDto;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.DocumentStatus;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.RouteRef;
 import com.srmecotech.plantride.masterdata.dto.MasterDataDtos.VehicleRef;
@@ -116,6 +118,8 @@ public final class DriverDtos {
             boolean canArriveNext,
             String arriveBlockedReason,
             int speedLimitKmh,
+            /** Where the cab is, measured to the next stop; null if it has never reported a position. */
+            CabLocationDto cab,
             List<QueueStopDto> stops) {
     }
 
@@ -123,6 +127,8 @@ public final class DriverDtos {
             int seq,
             Long stopId,
             String stopName,
+            double latitude,
+            double longitude,
             /** DONE, CURRENT, NEXT or UPCOMING. */
             String state,
             int etaMinutes,
@@ -143,7 +149,9 @@ public final class DriverDtos {
             String toStopName,
             /** Seconds until the driver may mark a no-show (0 = allowed now); null if not at the pickup. */
             Long noShowAllowedInSeconds,
-            boolean otpLocked) {
+            boolean otpLocked,
+            /** Where a rider waiting for this cab is, if they share it; null once on board. */
+            RiderLocationDto location) {
     }
 
     /** The driver's current trip, or trip = null when the queue is empty (e.g. the last drop just closed it). */
@@ -163,14 +171,26 @@ public final class DriverDtos {
 
     // ---------------------------------------------------------------- GPS & issues
 
+    /**
+     * @param ageSeconds how old the fix already is on the phone; preferred over {@code recordedAt}
+     *                   because it does not depend on the phone's clock or time zone
+     * @param recordedAt device time in plant time, for AIS-140 boxes that buffer and send late
+     */
     public record LocationPingRequest(
             @NotNull @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
             @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
             @PositiveOrZero @DecimalMax("250.0") Double speedKmh,
+            @PositiveOrZero @Max(5000) Integer accuracyM,
+            @Min(0) @Max(359) Integer heading,
+            @PositiveOrZero @Max(86_400) Integer ageSeconds,
             LocalDateTime recordedAt) {
     }
 
-    public record LocationAckDto(boolean overspeed, int speedLimitKmh, String autoArrivedAt) {
+    /**
+     * @param outsideServiceArea the fix was ignored: it is farther from every pickup point than the
+     *                           admin's service radius (a GPS glitch, or a phone outside the plant)
+     */
+    public record LocationAckDto(boolean overspeed, int speedLimitKmh, String autoArrivedAt, boolean outsideServiceArea) {
     }
 
     public enum IssueType {

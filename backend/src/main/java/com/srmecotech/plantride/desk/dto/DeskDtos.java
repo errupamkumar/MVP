@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -137,6 +138,40 @@ public final class DeskDtos {
             DocState state,
             String label,
             boolean blocksDispatch) {
+    }
+
+    // ---------------------------------------------------------------- pickup points
+
+    /**
+     * A pickup point (stop) as the admin manages it.
+     *
+     * @param routes       labels of the routes whose sequence includes it
+     * @param liveBookings bookings not yet closed that pick up or drop here
+     */
+    public record PickupPointDto(
+            Long id,
+            String code,
+            String name,
+            String zone,
+            String landmark,
+            double latitude,
+            double longitude,
+            int geofenceM,
+            boolean active,
+            List<String> routes,
+            long liveBookings) {
+    }
+
+    /** Create or edit a pickup point. The code is fixed once created; it is ignored on edit. */
+    public record SavePickupPointRequest(
+            @Pattern(regexp = "[A-Z0-9-]{2,20}", message = "Code: 2 to 20 capital letters, digits or dashes") String code,
+            @NotBlank(message = "Enter a name") @Size(max = 100) String name,
+            @NotBlank(message = "Enter a zone") @Size(max = 20) String zone,
+            @Size(max = 160, message = "Keep the landmark under 160 characters") String landmark,
+            @NotNull(message = "Enter the latitude") @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
+            @NotNull(message = "Enter the longitude") @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
+            @NotNull @Min(value = 10, message = "Arrival radius is 10 to 500 m") @Max(value = 500, message = "Arrival radius is 10 to 500 m") Integer geofenceM,
+            Boolean active) {
     }
 
     public record AuditLogDto(Long id, String actorName, String action, String entityType, Long entityId,

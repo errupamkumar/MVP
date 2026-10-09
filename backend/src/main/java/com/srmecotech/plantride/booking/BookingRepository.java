@@ -161,4 +161,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                com.srmecotech.plantride.booking.BookingStatus.ONBOARD)
             """)
     boolean hasActiveOnRoute(@Param("routeId") Long routeId);
+
+    @Query("""
+            select count(b) from Booking b
+            where (b.fromStop.id = :stopId or b.toStop.id = :stopId)
+              and b.status in :statuses
+            """)
+    long countUsingStop(@Param("stopId") Long stopId, @Param("statuses") Collection<BookingStatus> statuses);
 }

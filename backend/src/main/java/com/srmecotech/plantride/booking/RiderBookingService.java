@@ -1,5 +1,7 @@
 package com.srmecotech.plantride.booking;
 
+import com.srmecotech.plantride.booking.dto.RiderDtos.AvailabilityDto;
+import com.srmecotech.plantride.booking.dto.RiderDtos.AvailabilityRequest;
 import com.srmecotech.plantride.booking.dto.RiderDtos.BookingDto;
 import com.srmecotech.plantride.booking.dto.RiderDtos.BookingSummaryDto;
 import com.srmecotech.plantride.booking.dto.RiderDtos.CreateBookingRequest;
@@ -22,6 +24,9 @@ import com.srmecotech.plantride.common.error.NotFoundException;
 import com.srmecotech.plantride.common.security.AuthenticatedUser;
 import com.srmecotech.plantride.common.settings.SettingsService;
 import com.srmecotech.plantride.common.util.Codes;
+import com.srmecotech.plantride.gps.LiveLocationService;
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.RiderLocationAckDto;
+import com.srmecotech.plantride.gps.dto.LiveLocationDtos.RiderLocationRequest;
 import com.srmecotech.plantride.identity.AppUser;
 import com.srmecotech.plantride.identity.AppUserRepository;
 import com.srmecotech.plantride.identity.Employee;
@@ -45,8 +50,6 @@ import com.srmecotech.plantride.safety.Alert;
 import com.srmecotech.plantride.safety.AlertService;
 import com.srmecotech.plantride.safety.AlertSeverity;
 import com.srmecotech.plantride.safety.AlertType;
-import com.srmecotech.plantride.trip.Duty;
-import com.srmecotech.plantride.trip.DutyRepository;
 import com.srmecotech.plantride.trip.Trip;
 import com.srmecotech.plantride.trip.TripService;
 import org.springframework.data.domain.PageRequest;
@@ -72,19 +75,21 @@ import java.util.stream.Collectors;
 public class RiderBookingService {
 
     private static final int IMMEDIATE_HORIZON_MINUTES = 60;
+    private static final int SEARCH_AGAIN_MIN_SECONDS = 3;
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.ENGLISH);
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH);
-    private static final DateTimeFormatter HH_MM = DateTimeFormatter.ofPattern("HH:mm");
 
     private final EmployeeRepository employeeRepository;
     private final AppUserRepository userRepository;
     private final BookingRepository bookingRepository;
-    private final DutyRepository dutyRepository;
+    private final ShuttleTimetable shuttleTimetable;
+    private final AvailabilityService availabilityService;
     private final RouteResolver routeResolver;
     private final MatchingEngine matchingEngine;
     private final DispatchService dispatchService;
     private final TripService tripService;
     private final BookingMapper mapper;
+    private final LiveLocationService liveLocations;
     private final NotificationService notificationService;
     private final AlertService alertService;
     private final AuditService auditService;
@@ -93,20 +98,23 @@ public class RiderBookingService {
 
     public RiderBookingService(EmployeeRepository employeeRepository, AppUserRepository userRepository,
                                BookingRepository bookingRepository,
-                               DutyRepository dutyRepository, RouteResolver routeResolver,
+                               ShuttleTimetable shuttleTimetable, AvailabilityService availabilityService,
+                               RouteResolver routeResolver,
                                MatchingEngine matchingEngine, DispatchService dispatchService,
-                               TripService tripService, BookingMapper mapper,
+                               TripService tripService, BookingMapper mapper, LiveLocationService liveLocations,
                                NotificationService notificationService, AlertService alertService,
                                AuditService auditService, SettingsService settings, Clock clock) {
         this.employeeRepository = employeeRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
-        this.dutyRepository = dutyRepository;
+        this.shuttleTimetable = shuttleTimetable;
+        this.availabilityService = availabilityService;
         this.routeResolver = routeResolver;
         this.matchingEngine = matchingEngine;
         this.dispatchService = dispatchService;
         this.tripService = tripService;
         this.mapper = mapper;
+        this.liveLocations = liveLocations;
         this.notificationService = notificationService;
         this.alertService = alertService;
         this.auditService = auditService;
@@ -152,7 +160,7 @@ public class RiderBookingService {
                 .orElse(null);
 
         return new RiderHomeDto(profileOf(employee), active, upcoming, saved, defaultFrom,
-                defaultFrom == null ? null : nextShuttleAt(defaultFrom, now),
+                defaultFrom == null ? null : shuttleTimetable.nextAt(defaultFrom, now),
                 notificationService.unreadCount(user.id()));
     }
 
@@ -174,7 +182,7 @@ public class RiderBookingService {
 
         List<RideOptionDto> options = new ArrayList<>();
 
-        Optional<ShuttleInfoDto> shuttle = shuttleFor(route, plan, ride.fromSeq(), now);
+        Optional<ShuttleInfoDto> shuttle = shuttleTimetable.forStop(plan, ride.fromSeq(), now);
         shuttle.ifPresent(s -> options.add(new RideOptionDto("SHUTTLE", false,
                 "Shuttle " + s.vehicleCode(),
                 s.firstRunAt() != null
@@ -222,6 +230,40 @@ public class RiderBookingService {
         return new RideOptionsResponse(RouteRef.of(route), StopRef.of(ride.from()), StopRef.of(ride.to()), ride.km(),
                 ride.minutes(), route.getMaxPassengers(), employee.getCostCentre().getCode(),
                 employee.getCostCentre().getName(), request.scheduledAt(), options);
+    }
+
+    // ------------------------------------------------------------------ availability and search
+
+    /** When a ride can reach the pickup, which cabs are near, and nearby pickup points where one comes sooner. */
+    @Transactional(readOnly = true)
+    public AvailabilityDto availability(AuthenticatedUser user, AvailabilityRequest request) {
+        employee(user);
+        return availabilityService.forRide(request.fromStopId(), request.toStopId(),
+                request.seats() == null ? 1 : request.seats());
+    }
+
+    /** The same picture for one of the rider's bookings, plus how the search for a cab is going. */
+    @Transactional(readOnly = true)
+    public AvailabilityDto bookingAvailability(AuthenticatedUser user, Long bookingId) {
+        return availabilityService.forBooking(owned(user, bookingId));
+    }
+
+    /**
+     * "Search again now": runs the matching engine for a waiting request
+     * straight away instead of waiting for the next sweep. A booking that is
+     * no longer waiting, or was checked in the last few seconds, is returned
+     * as it is.
+     */
+    @Transactional
+    public BookingDto searchAgain(AuthenticatedUser user, Long bookingId) {
+        Booking booking = owned(user, bookingId);
+        LocalDateTime now = LocalDateTime.now(clock);
+        boolean justChecked = booking.getUpdatedAt() != null
+                && Duration.between(booking.getUpdatedAt(), now).toSeconds() < SEARCH_AGAIN_MIN_SECONDS;
+        if (booking.getStatus() == BookingStatus.REQUESTED && !justChecked) {
+            dispatchService.dispatch(booking);
+        }
+        return mapper.toDto(booking);
     }
 
     // ------------------------------------------------------------------ booking lifecycle
@@ -393,6 +435,20 @@ public class RiderBookingService {
         return mapper.toDto(booking);
     }
 
+    // ------------------------------------------------------------------ live location
+
+    /** The rider's own position, shown to the driver coming for them; only while the cab is on its way. */
+    @Transactional
+    public RiderLocationAckDto shareLocation(AuthenticatedUser user, Long bookingId, RiderLocationRequest request) {
+        return liveLocations.shareRider(owned(user, bookingId), request);
+    }
+
+    /** Stop sharing: the position is deleted and the driver stops seeing it at once. */
+    @Transactional
+    public void stopSharingLocation(AuthenticatedUser user, Long bookingId) {
+        liveLocations.forget(owned(user, bookingId));
+    }
+
     @Transactional
     public SosResultDto sos(AuthenticatedUser user, RiderSosRequest request) {
         Employee employee = employee(user);
@@ -448,49 +504,6 @@ public class RiderBookingService {
     private long noShowsInWindow(Employee employee, LocalDateTime now) {
         int windowDays = settings.getInt(SettingsService.NO_SHOW_WINDOW_DAYS, 30);
         return bookingRepository.countNoShowsSince(employee.getId(), now.minusDays(windowDays));
-    }
-
-    private ShuttleInfoDto nextShuttleAt(Long stopId, LocalDateTime now) {
-        for (RoutePlan plan : routeResolver.activePlans()) {
-            List<Integer> seqs = plan.seqsOfStop(stopId);
-            if (seqs.isEmpty()) {
-                continue;
-            }
-            Optional<ShuttleInfoDto> info = shuttleFor(plan.route(), plan, seqs.get(0), now);
-            if (info.isPresent()) {
-                return info.get();
-            }
-        }
-        return null;
-    }
-
-    /**
-     * The next timetabled shuttle at a stop. Departures leave the first stop
-     * every frequency minutes from first_departure; the shuttle reaches later
-     * stops after the configured leg times.
-     */
-    private Optional<ShuttleInfoDto> shuttleFor(Route route, RoutePlan plan, int fromSeq, LocalDateTime now) {
-        if (route.getFrequencyMin() == null || route.getFrequencyMin() <= 0) {
-            return Optional.empty();
-        }
-        Optional<Duty> shuttleDuty = dutyRepository.findActiveWithVehicleAndDriver().stream()
-                .filter(d -> d.getVehicle().isShuttle())
-                .filter(d -> d.getVehicle().getHomeRoute() != null && d.getVehicle().getHomeRoute().getId().equals(route.getId()))
-                .findFirst();
-        if (shuttleDuty.isEmpty()) {
-            return Optional.empty();
-        }
-        int frequency = route.getFrequencyMin();
-        int offset = plan.minutesBetween(plan.stops().get(0).getSeq(), fromSeq);
-        LocalDateTime firstAtStop = now.toLocalDate().atTime(route.getFirstDeparture()).plusMinutes(offset);
-        long sinceFirst = Duration.between(firstAtStop, now).toMinutes();
-        boolean beforeService = sinceFirst < 0;
-        int wait = beforeService ? (int) -sinceFirst : (int) ((frequency - (sinceFirst % frequency)) % frequency);
-        Vehicle shuttle = shuttleDuty.get().getVehicle();
-        Stop stop = plan.stopAt(fromSeq);
-        return Optional.of(new ShuttleInfoDto(shuttle.getCode(), "Route " + route.getCode().replace("R", ""),
-                stop.getId(), stop.getName(), wait, frequency, shuttle.getSeatCapacity(),
-                beforeService ? firstAtStop.toLocalTime().format(HH_MM) : null));
     }
 
     private String uniqueBookingCode() {

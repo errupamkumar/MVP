@@ -11,6 +11,7 @@ import com.srmecotech.plantride.common.error.NotFoundException;
 import com.srmecotech.plantride.common.security.AuthenticatedUser;
 import com.srmecotech.plantride.common.settings.SettingsService;
 import com.srmecotech.plantride.common.util.Money;
+import com.srmecotech.plantride.gps.LiveLocationService;
 import com.srmecotech.plantride.masterdata.Driver;
 import com.srmecotech.plantride.masterdata.RoutePlan;
 import com.srmecotech.plantride.masterdata.RouteResolver;
@@ -48,6 +49,7 @@ public class TripService {
     private final BookingRepository bookingRepository;
     private final RouteResolver routeResolver;
     private final DriverQueueService queueService;
+    private final LiveLocationService liveLocations;
     private final BillingService billingService;
     private final NotificationService notificationService;
     private final AuditService auditService;
@@ -56,13 +58,14 @@ public class TripService {
     private final Clock clock;
 
     public TripService(TripRepository tripRepository, BookingRepository bookingRepository,
-                       RouteResolver routeResolver, DriverQueueService queueService, BillingService billingService,
-                       NotificationService notificationService, AuditService auditService,
+                       RouteResolver routeResolver, DriverQueueService queueService, LiveLocationService liveLocations,
+                       BillingService billingService, NotificationService notificationService, AuditService auditService,
                        SettingsService settings, ApplicationEventPublisher events, Clock clock) {
         this.tripRepository = tripRepository;
         this.bookingRepository = bookingRepository;
         this.routeResolver = routeResolver;
         this.queueService = queueService;
+        this.liveLocations = liveLocations;
         this.billingService = billingService;
         this.notificationService = notificationService;
         this.auditService = auditService;
@@ -120,6 +123,8 @@ public class TripService {
         booking.setStatus(BookingStatus.ONBOARD);
         booking.setBoardedAt(now);
         booking.setUpdatedAt(now);
+        // On board, the cab's position is the rider's: their own is no longer needed.
+        liveLocations.forget(booking);
         if (trip.getStatus() == TripStatus.PLANNED) {
             trip.setStatus(TripStatus.IN_PROGRESS);
             trip.setStartedAt(now);

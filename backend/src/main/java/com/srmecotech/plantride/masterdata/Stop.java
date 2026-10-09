@@ -36,6 +36,10 @@ public class Stop {
     @Column(nullable = false)
     private Double longitude;
 
+    /** Where exactly to wait, as the rider sees it on the ground (e.g. "Security cabin, visitor lane"). */
+    @Column(length = 160)
+    private String landmark;
+
     /** Radius (m) inside which a GPS ping counts as "arrived at this stop". */
     @Column(name = "geofence_m", nullable = false)
     private Integer geofenceM;

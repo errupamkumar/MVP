@@ -3,7 +3,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import type { RideOptionDto, RideOptionsRequest, RideType } from '@/api/types';
+import type { AvailabilityRequest, RideOptionDto, RideOptionsRequest, RideType } from '@/api/types';
 import {
   Banner,
   Button,
@@ -12,14 +12,14 @@ import {
   ErrorState,
   Eyebrow,
   KeyValue,
-  LoadingState,
   Muted,
   Row,
   Screen,
   SectionTitle,
 } from '@/components/ui';
+import { NearbyCabs, NearbySpots, SearchedLine, SearchingCard, WhenRideComes } from '@/features/availability/AvailabilityPanels';
 import { useBookingDraft } from '@/features/booking/BookingDraft';
-import { useCreateBooking, useRideOptions } from '@/hooks/queries';
+import { useAvailability, useCreateBooking, useRideOptions } from '@/hooks/queries';
 import { dayAndTime, km, minutes } from '@/lib/format';
 import { uuid } from '@/lib/ids';
 import { colors } from '@/lib/theme';
@@ -32,7 +32,7 @@ const ICONS: Record<RideOptionDto['type'], ComponentProps<typeof Ionicons>['name
 
 export default function RideOptionsScreen() {
   const router = useRouter();
-  const { draft, reset } = useBookingDraft();
+  const { draft, reset, update } = useBookingDraft();
   const [selected, setSelected] = useState<RideType | null>(null);
   const create = useCreateBooking();
 
@@ -42,6 +42,30 @@ export default function RideOptionsScreen() {
     [draft.from, draft.to, draft.seats, scheduledAt],
   );
   const options = useRideOptions(request);
+
+  // Availability only matters for a ride now: when a cab can come, which cabs are near, nearby pickup points.
+  const availabilityRequest = useMemo<AvailabilityRequest | null>(
+    () => (draft.from && draft.to && !scheduledAt ? { fromStopId: draft.from.id, toStopId: draft.to.id, seats: draft.seats } : null),
+    [draft.from, draft.to, draft.seats, scheduledAt],
+  );
+  const availability = useAvailability(availabilityRequest);
+
+  // Search progress: a fresh search starts when the trip changes or the rider taps Search again.
+  const [searchStartedAt, setSearchStartedAt] = useState(() => Date.now());
+  const [manualSearch, setManualSearch] = useState(false);
+  useEffect(() => {
+    setSearchStartedAt(Date.now());
+  }, [request]);
+  const searchingAgain = manualSearch && (options.isFetching || availability.isFetching);
+  useEffect(() => {
+    if (manualSearch && !options.isFetching && !availability.isFetching) setManualSearch(false);
+  }, [manualSearch, options.isFetching, availability.isFetching]);
+  const searchAgain = () => {
+    setSearchStartedAt(Date.now());
+    setManualSearch(true);
+    void options.refetch();
+    if (availabilityRequest) void availability.refetch();
+  };
 
   // One Idempotency-Key per booking attempt: a double tap or a retried request
   // returns the same booking instead of creating two. A new choice = a new attempt.
@@ -96,8 +120,8 @@ export default function RideOptionsScreen() {
   return (
     <Screen
       topInset={false}
-      refreshing={options.isRefetching}
-      onRefresh={() => options.refetch()}
+      refreshing={false}
+      onRefresh={searchAgain}
       footer={
         options.data ? (
           <Button label={confirmLabel} icon="checkmark-circle" onPress={confirm} loading={create.isPending} disabled={!selected} />
@@ -105,7 +129,7 @@ export default function RideOptionsScreen() {
       }
     >
       {options.isPending ? (
-        <LoadingState label="Checking cabs, seats and ETAs…" />
+        <SearchingCard startedAt={searchStartedAt} pickupName={draft.from?.name ?? 'your pickup'} />
       ) : options.isError ? (
         <ErrorState error={options.error} onRetry={() => options.refetch()} />
       ) : (
@@ -121,6 +145,17 @@ export default function RideOptionsScreen() {
               {draft.seats === 1 ? 'seat' : 'seats'}
             </Text>
           </Card>
+
+          {searchingAgain ? (
+            <SearchingCard startedAt={searchStartedAt} pickupName={options.data.from.name} />
+          ) : (
+            <SearchedLine
+              receivedAt={Math.max(options.dataUpdatedAt, availability.dataUpdatedAt)}
+              vehiclesOnDuty={availability.data?.vehiclesOnDuty ?? 0}
+              onSearchAgain={searchAgain}
+              searching={searchingAgain}
+            />
+          )}
 
           <SectionTitle title="Ride options" />
           {options.data.options.map((o) => (
@@ -141,6 +176,23 @@ export default function RideOptionsScreen() {
               <Muted>A full cab is never offered a fourth rider; you get the next cab and its ETA instead.</Muted>
             </View>
           </Card>
+
+          {availability.data ? (
+            <>
+              <WhenRideComes a={availability.data} />
+              <NearbySpots
+                a={availability.data}
+                actionLabel="Pick up here instead"
+                onUse={(s) => {
+                  setSelected(null);
+                  update({ from: { id: s.stop.id, name: s.stop.name } });
+                }}
+              />
+              <NearbyCabs a={availability.data} />
+            </>
+          ) : availability.isError ? (
+            <View className="mt-3"><ErrorBanner error={availability.error} /></View>
+          ) : null}
 
           <SectionTitle title="Charged to" />
           <Card>

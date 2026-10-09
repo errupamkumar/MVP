@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
-import type { RouteDto } from '@/api/types';
+import type { RouteDto, StopDto } from '@/api/types';
 import { DeskHeader } from '@/components/DeskHeader';
 import {
   Banner,
@@ -20,7 +20,7 @@ import {
   SectionTitle,
   Stepper,
 } from '@/components/ui';
-import { useAdminRoutes, useAudit, useCompliance, useResequence, useResetDemo, useUpdateRules } from '@/hooks/queries';
+import { useAdminRoutes, useAudit, useCompliance, useResequence, useResetDemo, useStops, useUpdateRules } from '@/hooks/queries';
 import { confirmAction } from '@/lib/dialogs';
 import { dayAndTime, km, minutes } from '@/lib/format';
 import { colors } from '@/lib/theme';
@@ -166,6 +166,8 @@ function SequenceEditor({ route }: { route: RouteDto }) {
   );
   const [stops, setStops] = useState(initial);
   const [saved, setSaved] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const allStops = useStops();
   useEffect(() => setStops(initial), [initial]);
   const dirty = JSON.stringify(stops) !== JSON.stringify(initial);
 
@@ -175,6 +177,21 @@ function SequenceEditor({ route }: { route: RouteDto }) {
     const next = [...stops];
     [next[index], next[target]] = [next[target], next[index]];
     setStops(next);
+    setSaved(false);
+  };
+  const remove = (index: number) => {
+    setStops((cur) => cur.filter((_, i) => i !== index));
+    setSaved(false);
+  };
+  /** New stops go before the closing stop of a loop, so the loop stays closed; at the end of a one-way route. */
+  const add = (stop: StopDto) => {
+    setStops((cur) => {
+      const at = route.routeType === 'LOOP' && cur.length > 1 ? cur.length - 1 : cur.length;
+      const next = [...cur];
+      next.splice(at, 0, { key: `new-${stop.id}-${Date.now()}`, stopId: stop.id, stopName: stop.name, legMinutes: '', legKm: '' });
+      return next;
+    });
+    setAdding(false);
     setSaved(false);
   };
   const edit = (index: number, patch: Partial<EditableStop>) => {
@@ -224,10 +241,25 @@ function SequenceEditor({ route }: { route: RouteDto }) {
             <IconButton icon="arrow-up" label={`Move ${s.stopName} up`} onPress={() => move(i, -1)} />
             <View className="w-1" />
             <IconButton icon="arrow-down" label={`Move ${s.stopName} down`} onPress={() => move(i, 1)} />
+            <View className="w-1" />
+            <IconButton icon="close" label={`Remove ${s.stopName}`} onPress={() => remove(i)} />
           </Row>
         ))}
       </Card>
+      {adding ? (
+        <Card className="mt-2">
+          <Text className="mb-2 text-base font-semibold text-ink">Add a pickup point to {route.label}</Text>
+          <Muted className="mb-2">Then enter the minutes and kilometres from the stop before it. New pickup points are added in Pickup points.</Muted>
+          <Row className="flex-wrap">
+            {(allStops.data ?? []).map((st) => (
+              <Chip key={st.id} label={st.name} icon="add" selected={false} onPress={() => add(st)} />
+            ))}
+          </Row>
+          <Button label="Close" variant="ghost" size="sm" onPress={() => setAdding(false)} />
+        </Card>
+      ) : null}
       <Row className="mt-3 justify-end">
+        {!adding ? <Button label="Add a stop" icon="add" variant="secondary" size="md" className="mr-2" onPress={() => setAdding(true)} /> : null}
         {dirty ? <Button label="Undo" variant="secondary" size="md" className="mr-2" onPress={() => setStops(initial)} /> : null}
         <Button label="Save sequence" size="md" icon="save" disabled={!dirty} loading={resequence.isPending} onPress={save} />
       </Row>
