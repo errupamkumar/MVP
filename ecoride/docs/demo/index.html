@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EcoRide Demo Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&family=Overpass+Mono:wght@500;600&display=swap">
+<style>
+  /* Layout: one reading column; each app part has its own video (phone portrait or desktop) with chapters beside it, then its steps. */
+  :root {
+    --bg: #F4F6F3; --surface: #FFFFFF; --ink: #111A16; --muted: #56625C; --line: #DDE3DE;
+    --accent: #0A8F5B; --accent-ink: #066B43; --accent-soft: #E1F2E9; --plate: #FFD84D; --plate-ink: #111111;
+    --shadow: 0 1px 2px rgba(17,26,22,.06), 0 8px 24px rgba(17,26,22,.06);
+    --display: 'Overpass', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Overpass', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Overpass Mono', ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0D1311; --surface: #151D19; --ink: #E7EEEA; --muted: #9AA8A1; --line: #26312C;
+    --accent: #34C38A; --accent-ink: #6FDCAE; --accent-soft: #15382A; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3); color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #0D1311; --surface: #151D19; --ink: #E7EEEA; --muted: #9AA8A1; --line: #26312C;
+    --accent: #34C38A; --accent-ink: #6FDCAE; --accent-soft: #15382A; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55; padding-inline: 20px; }
+  main { max-width: 1180px; margin: 0 auto; padding-block: 48px 72px; display: flex; flex-direction: column; gap: 80px; }
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.12; }
+  h1 { font-size: clamp(2.4rem, 5.5vw, 4rem); font-weight: 900; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.7rem, 3.2vw, 2.4rem); font-weight: 800; letter-spacing: -0.01em; }
+  h3 { font-size: 1.08rem; font-weight: 700; }
+  p { margin: 0; }
+  a { color: var(--accent-ink); }
+  .eyebrow { font-family: var(--mono); font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .hero { display: grid; gap: 22px; }
+  .lede { max-width: 64ch; font-size: 1.15rem; color: var(--muted); }
+  .ticket { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: 100%; }
+  .ticket > div { background: var(--surface); padding: 14px 16px; min-width: 0; }
+  .ticket .k { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .ticket .v { font-family: var(--display); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+  .ticket .s { font-size: .85rem; color: var(--muted); }
+  /* Overpass draws its middle dot off-centre, so the separator is a drawn dot (the glyph stays for copy and paste). */
+  .dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; vertical-align: middle; margin: 0 .4em; font-size: 0; overflow: hidden; }
+  .plate { white-space: nowrap; display: inline-block; background: var(--plate); color: var(--plate-ink); border: 2px solid var(--plate-ink); border-radius: 5px; padding: 0 7px; font-family: var(--mono); font-weight: 600; font-size: 1rem; letter-spacing: .04em; }
+  .jump { display: flex; flex-wrap: wrap; gap: 10px; }
+  .jump a { text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: .95rem; }
+  .jump a:hover, .jump a:focus-visible { border-color: var(--accent); color: var(--accent-ink); outline: none; }
+  .video { display: grid; gap: 28px; align-items: start; }
+  .video.wide { grid-template-columns: minmax(0, 1fr) 300px; }
+  .video.phone { grid-template-columns: 320px minmax(0, 1fr); }
+  .video-box { display: grid; gap: 12px; min-width: 0; }
+  .side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+  video { width: 100%; max-width: 100%; height: auto; border-radius: 14px; background: #000; box-shadow: var(--shadow); display: block; }
+  .video.wide video { aspect-ratio: 16 / 9; }
+  .video.phone video { aspect-ratio: 720 / 1776; border-radius: 26px; }
+  .note { font-size: .9rem; color: var(--muted); max-width: 70ch; }
+  .chapters { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .chapter { width: 100%; text-align: left; display: grid; grid-template-columns: 52px 1fr; column-gap: 10px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+  .chapter:hover, .chapter:focus-visible { background: var(--surface); border-color: var(--line); outline: none; }
+  .chapter.on { background: var(--accent-soft); border-color: transparent; }
+  .chapter .t { font-family: var(--mono); font-size: .85rem; color: var(--muted); grid-row: span 2; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .chapter .c { font-weight: 700; font-size: .95rem; }
+  .chapter .d { font-size: .85rem; color: var(--muted); line-height: 1.4; }
+  .part { display: grid; gap: 32px; scroll-margin-top: 20px; }
+  .part-head { display: grid; gap: 8px; border-top: 3px solid var(--ink); padding-top: 18px; }
+  .intro { max-width: 70ch; color: var(--muted); }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 28px 22px; }
+  .steps.phone { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .steps.wide { grid-template-columns: 1fr; gap: 40px; }
+  @media (min-width: 1100px) { .steps.wide { grid-template-columns: 1fr 1fr; } }
+  .step { display: grid; gap: 12px; align-content: start; scroll-margin-top: 20px; }
+  .shot { padding: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 22px; overflow: hidden; cursor: zoom-in; box-shadow: var(--shadow); display: block; width: 100%; }
+  .steps.wide .shot { border-radius: 12px; }
+  .shot:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .meta { display: grid; gap: 4px; }
+  .code { font-family: var(--mono); font-weight: 600; font-size: .78rem; color: var(--accent-ink); letter-spacing: .04em; }
+  .meta p { font-size: .95rem; color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+  .facts > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
+  .facts h3 { font-size: 1.15rem; }
+  .facts ul { margin: 0; padding-left: 1.1em; color: var(--muted); display: grid; gap: 6px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td code, .facts code { font-family: var(--mono); font-size: .9em; }
+  dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1600px); max-height: 94vh; }
+  dialog::backdrop { background: rgba(8, 12, 10, .82); }
+  dialog img { display: block; max-width: 100%; max-height: 90vh; width: auto; height: auto; margin: 0 auto; border-radius: 12px; }
+  dialog button { position: fixed; top: 16px; right: 16px; font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 8px 16px; background: var(--surface); color: var(--ink); cursor: pointer; }
+  footer { color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 18px; }
+  @media (max-width: 860px) {
+    .video.wide, .video.phone { grid-template-columns: 1fr; }
+    .video.phone .video-box { width: min(320px, 100%); justify-self: center; }
+  }
+  @media (max-width: 560px) { .ticket { grid-template-columns: 1fr 1fr; } .ticket > div:last-child { grid-column: 1 / -1; } }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+</head>
+<body>
+<main>
+  <header class="hero">
+    <p class="eyebrow">SRM ECO TECH <span class="dot">·</span> EcoRide <span class="dot">·</span> Pune</p>
+    <h1>EcoRide, step by step</h1>
+    <p class="lede">One real ride through three independent apps, with a separate video for each: the rider app and the driver app as full phone screens, the admin console as a desktop web page. A new rider signs up and books from the phone's GPS location, an approved driver accepts and drives it on real roads, and the admin console sees every step. All three videos and every screen below come from that one live run.</p>
+    <div class="ticket" aria-label="The recorded ride">
+      <div><div class="k">Ride</div><div class="v">ERYJTHRF</div><div class="s">Mini <span class="dot">·</span> paid by UPI</div></div>
+      <div><div class="k">Route</div><div class="v" style="font-size:1.02rem">Balewadi High Street → Savitribai Phule Pune University</div></div>
+      <div><div class="k">Distance</div><div class="v">8.37 km</div><div class="s">by GPS <span class="dot">·</span> planned 8.62 km (3% apart)</div></div>
+      <div><div class="k">Fare</div><div class="v">₹152</div><div class="s">₹231 upfront, −₹75 FIRST50</div></div>
+      <div><div class="k">Driver</div><div class="v" style="font-size:1.02rem">Rahul Patil</div><div class="s"><span class="plate">MH 12 AB 4521</span> <span class="dot">·</span> earned ₹176.02</div></div>
+    </div>
+    <nav class="jump" aria-label="Videos">
+      <a href="#rider">Rider app video <span class="dot">·</span> 1:57</a>
+      <a href="#driver">Driver app video <span class="dot">·</span> 1:55</a>
+      <a href="#admin">Admin console video <span class="dot">·</span> 1:14</a>
+      <a href="#run">Run it yourself</a>
+    </nav>
+  </header>
+
+    <section class="part" id="rider">
+      <div class="part-head">
+        <p class="eyebrow">Part 1 <span class="dot">·</span> video 1:57 <span class="dot">·</span> 17 steps</p>
+        <h2>Rider app</h2>
+        <p class="intro">A new rider signs up, books from the phone's GPS location with an upfront fare and a promo, follows the cab live, starts the trip with a PIN, and rates the driver from a receipt that checks the fare against the GPS distance.</p>
+      </div>
+      <div class="video phone">
+        <div class="video-box">
+          <video controls preload="metadata" playsinline poster="video/poster-rider.jpg" aria-label="Rider app demo video">
+            <source src="video/ecoride-rider.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="side">
+          <ol class="chapters" aria-label="Rider app chapters">
+            <li><button type="button" class="chapter" data-t="3.8"><span class="t">0:03</span><span class="c">1 <span class="dot">·</span> Sign up</span><span class="d">A new rider opens EcoRide. Rider accounts are separate from driver accounts.</span></button></li>
+            <li><button type="button" class="chapter" data-t="18.7"><span class="t">0:18</span><span class="c">2 <span class="dot">·</span> Book a ride</span><span class="d">Where to? Search any place in Pune.</span></button></li>
+            <li><button type="button" class="chapter" data-t="39.2"><span class="t">0:39</span><span class="c">3 <span class="dot">·</span> Live trip</span><span class="d">Rahul accepted. The car moves on the map with a live ETA; the 4-digit PIN starts the trip.</span></button></li>
+            <li><button type="button" class="chapter" data-t="89.2"><span class="t">1:29</span><span class="c">4 <span class="dot">·</span> Receipt &amp; rating</span><span class="d">Arrived. The receipt shows the total, paid by UPI, and asks for a rating.</span></button></li>
+            <li><button type="button" class="chapter" data-t="103.9"><span class="t">1:43</span><span class="c">5 <span class="dot">·</span> Rides &amp; wallet</span><span class="d">The account menu: past rides with receipts, the wallet, saved places.</span></button></li>
+          </ol>
+          <p class="note">Phone screen, 390 × 844. The middle of the drive to the drop plays 2.5× faster.</p>
+        </div>
+      </div>
+      <ol class="steps phone">
+        <li class="step" id="R01">
+          <button class="shot" type="button" data-full="img/R01.jpg" aria-label="Enlarge Welcome"><img src="img/R01.jpg" alt="Welcome: The rider app opens on a welcome screen with sign-up and sign-in." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R01</span>
+            <h3>Welcome</h3>
+            <p>The rider app opens on a welcome screen with sign-up and sign-in.</p>
+          </div>
+        </li>
+        <li class="step" id="R02">
+          <button class="shot" type="button" data-full="img/R02.jpg" aria-label="Enlarge Create an account"><img src="img/R02.jpg" alt="Create an account: Sign-up asks for a name, an Indian mobile number, an optional email and a password (8+ characters)." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R02</span>
+            <h3>Create an account</h3>
+            <p>Sign-up asks for a name, an Indian mobile number, an optional email and a password (8+ characters).</p>
+          </div>
+        </li>
+        <li class="step" id="R03">
+          <button class="shot" type="button" data-full="img/R03.jpg" aria-label="Enlarge Home: your location and cars nearby"><img src="img/R03.jpg" alt="Home: your location and cars nearby: The phone's GPS sets the pickup and labels it with the street. Free cars around the rider are drawn on the map and refresh every 5 s. A new rider gets ₹200 in the wallet and the FIRST50 code." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R03</span>
+            <h3>Home: your location and cars nearby</h3>
+            <p>The phone's GPS sets the pickup and labels it with the street. Free cars around the rider are drawn on the map and refresh every 5 s. A new rider gets ₹200 in the wallet and the FIRST50 code.</p>
+          </div>
+        </li>
+        <li class="step" id="R04">
+          <button class="shot" type="button" data-full="img/R04.jpg" aria-label="Enlarge Where to?"><img src="img/R04.jpg" alt="Where to?: Search covers curated city places and OpenStreetMap addresses, with each result's distance from the pickup." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R04</span>
+            <h3>Where to?</h3>
+            <p>Search covers curated city places and OpenStreetMap addresses, with each result's distance from the pickup.</p>
+          </div>
+        </li>
+        <li class="step" id="R05">
+          <button class="shot" type="button" data-full="img/R05.jpg" aria-label="Enlarge Choose a ride: upfront fares"><img src="img/R05.jpg" alt="Choose a ride: upfront fares: The road route (OSRM, OpenStreetMap) sets distance and time; every product shows its upfront fare and the nearest free car's ETA." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R05</span>
+            <h3>Choose a ride: upfront fares</h3>
+            <p>The road route (OSRM, OpenStreetMap) sets distance and time; every product shows its upfront fare and the nearest free car's ETA.</p>
+          </div>
+        </li>
+        <li class="step" id="R06">
+          <button class="shot" type="button" data-full="img/R06.jpg" aria-label="Enlarge Promo applied"><img src="img/R06.jpg" alt="Promo applied: The promo is checked on the server (validity, uses per rider, minimum fare) and the discounted fare replaces the price." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R06</span>
+            <h3>Promo applied</h3>
+            <p>The promo is checked on the server (validity, uses per rider, minimum fare) and the discounted fare replaces the price.</p>
+          </div>
+        </li>
+        <li class="step" id="R07">
+          <button class="shot" type="button" data-full="img/R07.jpg" aria-label="Enlarge Finding your ride"><img src="img/R07.jpg" alt="Finding your ride: Searching: the rider sees how many drivers have been asked; one driver at a time gets 15 s to accept." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R07</span>
+            <h3>Finding your ride</h3>
+            <p>Searching: the rider sees how many drivers have been asked; one driver at a time gets 15 s to accept.</p>
+          </div>
+        </li>
+        <li class="step" id="R08">
+          <button class="shot" type="button" data-full="img/R08.jpg" aria-label="Enlarge Driver on the way"><img src="img/R08.jpg" alt="Driver on the way: The rider sees the car move on the map with a live ETA and distance, the driver and plate, and the 4-digit PIN to start the trip." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R08</span>
+            <h3>Driver on the way</h3>
+            <p>The rider sees the car move on the map with a live ETA and distance, the driver and plate, and the 4-digit PIN to start the trip.</p>
+          </div>
+        </li>
+        <li class="step" id="R09">
+          <button class="shot" type="button" data-full="img/R09.jpg" aria-label="Enlarge Live tracking: the car approaches"><img src="img/R09.jpg" alt="Live tracking: the car approaches: Every GPS fix moves the car; distance left is measured along the road route, and the ETA counts down." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R09</span>
+            <h3>Live tracking: the car approaches</h3>
+            <p>Every GPS fix moves the car; distance left is measured along the road route, and the ETA counts down.</p>
+          </div>
+        </li>
+        <li class="step" id="R10">
+          <button class="shot" type="button" data-full="img/R10.jpg" aria-label="Enlarge Your driver has arrived"><img src="img/R10.jpg" alt="Your driver has arrived: Arrival is only accepted within 250 m of the pickup. Free waiting counts down; waiting charges start after it." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R10</span>
+            <h3>Your driver has arrived</h3>
+            <p>Arrival is only accepted within 250 m of the pickup. Free waiting counts down; waiting charges start after it.</p>
+          </div>
+        </li>
+        <li class="step" id="R11">
+          <button class="shot" type="button" data-full="img/R11.jpg" aria-label="Enlarge On trip"><img src="img/R11.jpg" alt="On trip: Remaining distance and arrival time update live; the GPS-measured distance builds up next to the planned route. SOS is one tap away." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R11</span>
+            <h3>On trip</h3>
+            <p>Remaining distance and arrival time update live; the GPS-measured distance builds up next to the planned route. SOS is one tap away.</p>
+          </div>
+        </li>
+        <li class="step" id="R12">
+          <button class="shot" type="button" data-full="img/R12.jpg" aria-label="Enlarge Receipt"><img src="img/R12.jpg" alt="Receipt: Total fare, paid by UPI, and the rating card." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R12</span>
+            <h3>Receipt</h3>
+            <p>Total fare, paid by UPI, and the rating card.</p>
+          </div>
+        </li>
+        <li class="step" id="R13">
+          <button class="shot" type="button" data-full="img/R13.jpg" aria-label="Enlarge Rate and tip"><img src="img/R13.jpg" alt="Rate and tip: Stars, compliments and an optional tip that goes to the driver in full." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R13</span>
+            <h3>Rate and tip</h3>
+            <p>Stars, compliments and an optional tip that goes to the driver in full.</p>
+          </div>
+        </li>
+        <li class="step" id="R14">
+          <button class="shot" type="button" data-full="img/R14.jpg" aria-label="Enlarge Distance check"><img src="img/R14.jpg" alt="Distance check: The GPS distance driven with the rider on board against the planned road route: within 20%, so the upfront price stands. Beyond it, the fare is recalculated from the GPS distance." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R14</span>
+            <h3>Distance check</h3>
+            <p>The GPS distance driven with the rider on board against the planned road route: within 20%, so the upfront price stands. Beyond it, the fare is recalculated from the GPS distance.</p>
+          </div>
+        </li>
+        <li class="step" id="R15">
+          <button class="shot" type="button" data-full="img/R15.jpg" aria-label="Enlarge Fare breakdown"><img src="img/R15.jpg" alt="Fare breakdown: Every line adds up to the total: base fare for the first 3 km, distance beyond it, time, the FIRST50 promo, 5% GST and rounding to whole rupees." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R15</span>
+            <h3>Fare breakdown</h3>
+            <p>Every line adds up to the total: base fare for the first 3 km, distance beyond it, time, the FIRST50 promo, 5% GST and rounding to whole rupees.</p>
+          </div>
+        </li>
+        <li class="step" id="R16">
+          <button class="shot" type="button" data-full="img/R16.jpg" aria-label="Enlarge Your rides"><img src="img/R16.jpg" alt="Your rides: Every ride with its date, route, fare and status; tap one for its receipt." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R16</span>
+            <h3>Your rides</h3>
+            <p>Every ride with its date, route, fare and status; tap one for its receipt.</p>
+          </div>
+        </li>
+        <li class="step" id="R17">
+          <button class="shot" type="button" data-full="img/R17.jpg" aria-label="Enlarge Wallet"><img src="img/R17.jpg" alt="Wallet: The wallet balance with the ₹200 welcome credit, quick UPI top-ups and the transaction list." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">R17</span>
+            <h3>Wallet</h3>
+            <p>The wallet balance with the ₹200 welcome credit, quick UPI top-ups and the transaction list.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="part" id="driver">
+      <div class="part-head">
+        <p class="eyebrow">Part 2 <span class="dot">·</span> video 1:55 <span class="dot">·</span> 15 steps</p>
+        <h2>Driver app</h2>
+        <p class="intro">A separate app with its own accounts. An approved driver goes online, takes the request inside its 15-second window, drives to the pickup and the drop, starts with the rider's PIN and sees the earnings. A new driver applies and goes online once an admin approves.</p>
+      </div>
+      <div class="video phone">
+        <div class="video-box">
+          <video controls preload="metadata" playsinline poster="video/poster-driver.jpg" aria-label="Driver app demo video">
+            <source src="video/ecoride-driver.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="side">
+          <ol class="chapters" aria-label="Driver app chapters">
+            <li><button type="button" class="chapter" data-t="4.2"><span class="t">0:04</span><span class="c">1 <span class="dot">·</span> Sign in</span><span class="d">Rahul, an approved driver, opens the separate EcoRide Driver app.</span></button></li>
+            <li><button type="button" class="chapter" data-t="8.5"><span class="t">0:08</span><span class="c">2 <span class="dot">·</span> Go online</span><span class="d">Signed in and offline: today's earnings, trips, rating and acceptance rate.</span></button></li>
+            <li><button type="button" class="chapter" data-t="17.8"><span class="t">0:17</span><span class="c">3 <span class="dot">·</span> Ride request</span><span class="d">Online near Balewadi, waiting for a request.</span></button></li>
+            <li><button type="button" class="chapter" data-t="23.8"><span class="t">0:23</span><span class="c">4 <span class="dot">·</span> To the pickup</span><span class="d">Accepted. The road route to the pickup is planned from where the cab is; Navigate opens turn-by-turn.</span></button></li>
+            <li><button type="button" class="chapter" data-t="37.2"><span class="t">0:37</span><span class="c">5 <span class="dot">·</span> Trip</span><span class="d">The rider reads out the PIN. The trip starts only with the right PIN.</span></button></li>
+            <li><button type="button" class="chapter" data-t="77.5"><span class="t">1:17</span><span class="c">6 <span class="dot">·</span> Earnings</span><span class="d">Rahul rates Priya, then opens Earnings: the trip share and the ₹20 tip are already in.</span></button></li>
+            <li><button type="button" class="chapter" data-t="89.6"><span class="t">1:29</span><span class="c">7 <span class="dot">·</span> New driver</span><span class="d">Onboarding: a new driver applies in three steps; the account waits for an admin to approve it.</span></button></li>
+            <li><button type="button" class="chapter" data-t="102.6"><span class="t">1:42</span><span class="c">8 <span class="dot">·</span> Approved</span><span class="d">An admin approved the application. Arjun goes online and starts receiving requests.</span></button></li>
+          </ol>
+          <p class="note">Phone screen, 390 × 844. On a laptop the app replays the drive along the road route at 15× real time; the middle of the drive to the drop plays 2.5× faster again.</p>
+        </div>
+      </div>
+      <ol class="steps phone">
+        <li class="step" id="D01">
+          <button class="shot" type="button" data-full="img/D01.jpg" aria-label="Enlarge Driver app welcome"><img src="img/D01.jpg" alt="Driver app welcome: The driver app is a separate app with its own sign-up (Apply to drive) and sign-in." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D01</span>
+            <h3>Driver app welcome</h3>
+            <p>The driver app is a separate app with its own sign-up (Apply to drive) and sign-in.</p>
+          </div>
+        </li>
+        <li class="step" id="D02">
+          <button class="shot" type="button" data-full="img/D02.jpg" aria-label="Enlarge Offline home"><img src="img/D02.jpg" alt="Offline home: Signed in and offline: today's earnings, trips, rating and acceptance rate, and one big Go online button." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D02</span>
+            <h3>Offline home</h3>
+            <p>Signed in and offline: today's earnings, trips, rating and acceptance rate, and one big Go online button.</p>
+          </div>
+        </li>
+        <li class="step" id="D03">
+          <button class="shot" type="button" data-full="img/D03.jpg" aria-label="Enlarge Online and waiting for requests"><img src="img/D03.jpg" alt="Online and waiting for requests: Online: the cab's position goes to the server every second (simulated GPS in this laptop demo; real GPS on a phone)." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D03</span>
+            <h3>Online and waiting for requests</h3>
+            <p>Online: the cab's position goes to the server every second (simulated GPS in this laptop demo; real GPS on a phone).</p>
+          </div>
+        </li>
+        <li class="step" id="D04">
+          <button class="shot" type="button" data-full="img/D04.jpg" aria-label="Enlarge Ride request with countdown"><img src="img/D04.jpg" alt="Ride request with countdown: The request card: what the driver earns (80% of the fare), pickup distance and ETA, trip distance and time, payment method, rider rating, and a countdown ring." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D04</span>
+            <h3>Ride request with countdown</h3>
+            <p>The request card: what the driver earns (80% of the fare), pickup distance and ETA, trip distance and time, payment method, rider rating, and a countdown ring.</p>
+          </div>
+        </li>
+        <li class="step" id="D05">
+          <button class="shot" type="button" data-full="img/D05.jpg" aria-label="Enlarge Navigating to the pickup"><img src="img/D05.jpg" alt="Navigating to the pickup: Live distance and time to the pickup, measured along the road route; Navigate opens turn-by-turn directions; the rider's shared position shows too." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D05</span>
+            <h3>Navigating to the pickup</h3>
+            <p>Live distance and time to the pickup, measured along the road route; Navigate opens turn-by-turn directions; the rider's shared position shows too.</p>
+          </div>
+        </li>
+        <li class="step" id="D06">
+          <button class="shot" type="button" data-full="img/D06.jpg" aria-label="Enlarge Start with the rider's PIN"><img src="img/D06.jpg" alt="Start with the rider's PIN: The trip starts only with the 4-digit PIN from the rider's app; a wrong PIN is refused." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D06</span>
+            <h3>Start with the rider's PIN</h3>
+            <p>The trip starts only with the 4-digit PIN from the rider's app; a wrong PIN is refused.</p>
+          </div>
+        </li>
+        <li class="step" id="D07">
+          <button class="shot" type="button" data-full="img/D07.jpg" aria-label="Enlarge Driving to the drop"><img src="img/D07.jpg" alt="Driving to the drop: The driver sees the distance left, the GPS distance so far, the fare and their earning." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D07</span>
+            <h3>Driving to the drop</h3>
+            <p>The driver sees the distance left, the GPS distance so far, the fare and their earning.</p>
+          </div>
+        </li>
+        <li class="step" id="D08">
+          <button class="shot" type="button" data-full="img/D08.jpg" aria-label="Enlarge Trip complete"><img src="img/D08.jpg" alt="Trip complete: GPS distance vs the planned route, the fare and the driver's share. UPI was charged automatically; with cash the driver confirms &quot;Cash collected&quot;." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D08</span>
+            <h3>Trip complete</h3>
+            <p>GPS distance vs the planned route, the fare and the driver's share. UPI was charged automatically; with cash the driver confirms &quot;Cash collected&quot;.</p>
+          </div>
+        </li>
+        <li class="step" id="D09">
+          <button class="shot" type="button" data-full="img/D09.jpg" aria-label="Enlarge Earnings"><img src="img/D09.jpg" alt="Earnings: Today and the last 7 days, cash kept on cash rides, the Monday payout balance and the activity ledger (trip share, tip)." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D09</span>
+            <h3>Earnings</h3>
+            <p>Today and the last 7 days, cash kept on cash rides, the Monday payout balance and the activity ledger (trip share, tip).</p>
+          </div>
+        </li>
+        <li class="step" id="D10">
+          <button class="shot" type="button" data-full="img/D10.jpg" aria-label="Enlarge Profile"><img src="img/D10.jpg" alt="Profile: The driver's vehicle, licence, rating and the Demo GPS setting (simulated drive on a laptop, real GPS on a phone)." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D10</span>
+            <h3>Profile</h3>
+            <p>The driver's vehicle, licence, rating and the Demo GPS setting (simulated drive on a laptop, real GPS on a phone).</p>
+          </div>
+        </li>
+        <li class="step" id="D11">
+          <button class="shot" type="button" data-full="img/D11.jpg" aria-label="Enlarge Apply: about you"><img src="img/D11.jpg" alt="Apply: about you: Step 1 of 3: name as on the licence, mobile number, optional email, password." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D11</span>
+            <h3>Apply: about you</h3>
+            <p>Step 1 of 3: name as on the licence, mobile number, optional email, password.</p>
+          </div>
+        </li>
+        <li class="step" id="D12">
+          <button class="shot" type="button" data-full="img/D12.jpg" aria-label="Enlarge Apply: your vehicle"><img src="img/D12.jpg" alt="Apply: your vehicle: Step 2: ride type, make, model, colour, year and registration number (checked for format and duplicates)." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D12</span>
+            <h3>Apply: your vehicle</h3>
+            <p>Step 2: ride type, make, model, colour, year and registration number (checked for format and duplicates).</p>
+          </div>
+        </li>
+        <li class="step" id="D13">
+          <button class="shot" type="button" data-full="img/D13.jpg" aria-label="Enlarge Apply: licence and documents"><img src="img/D13.jpg" alt="Apply: licence and documents: Step 3: driving licence number; documents are checked by an admin at approval." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D13</span>
+            <h3>Apply: licence and documents</h3>
+            <p>Step 3: driving licence number; documents are checked by an admin at approval.</p>
+          </div>
+        </li>
+        <li class="step" id="D14">
+          <button class="shot" type="button" data-full="img/D14.jpg" aria-label="Enlarge Application under review"><img src="img/D14.jpg" alt="Application under review: The applicant can sign in but cannot go online until an EcoRide admin approves the account." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D14</span>
+            <h3>Application under review</h3>
+            <p>The applicant can sign in but cannot go online until an EcoRide admin approves the account.</p>
+          </div>
+        </li>
+        <li class="step" id="D15">
+          <button class="shot" type="button" data-full="img/D15.jpg" aria-label="Enlarge Approved driver goes online"><img src="img/D15.jpg" alt="Approved driver goes online: Once approved, the new driver goes online and starts receiving requests." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">D15</span>
+            <h3>Approved driver goes online</h3>
+            <p>Once approved, the new driver goes online and starts receiving requests.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="part" id="admin">
+      <div class="part-head">
+        <p class="eyebrow">Part 3 <span class="dot">·</span> video 1:14 <span class="dot">·</span> 13 steps</p>
+        <h2>Admin console</h2>
+        <p class="intro">The web console has complete access: the dashboard, a live map of every driver and ride, the ride just taken with its GPS trace, driver approval, fares, surge, finance, settings and the audit log.</p>
+      </div>
+      <div class="video wide">
+        <div class="video-box">
+          <video controls preload="metadata" playsinline poster="video/poster-admin.jpg" aria-label="Admin console demo video">
+            <source src="video/ecoride-admin.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="side">
+          <ol class="chapters" aria-label="Admin console chapters">
+            <li><button type="button" class="chapter" data-t="4.4"><span class="t">0:04</span><span class="c">1 <span class="dot">·</span> Sign in</span><span class="d">Operations sign in to the admin web console with a separate staff account.</span></button></li>
+            <li><button type="button" class="chapter" data-t="8.0"><span class="t">0:07</span><span class="c">2 <span class="dot">·</span> Dashboard</span><span class="d">Today's bookings and commission, rides right now (Priya's trip is one of them), drivers online and what needs attention.</span></button></li>
+            <li><button type="button" class="chapter" data-t="13.4"><span class="t">0:13</span><span class="c">3 <span class="dot">·</span> Live map</span><span class="d">Every online driver (free, on a trip, looking at a request), rides in flight and surge zones, refreshed every 3 s.</span></button></li>
+            <li><button type="button" class="chapter" data-t="21.9"><span class="t">0:21</span><span class="c">4 <span class="dot">·</span> Rides</span><span class="d">Every ride, with filters by status and type and a text search. Here is Priya's ride that just finished.</span></button></li>
+            <li><button type="button" class="chapter" data-t="35.6"><span class="t">0:35</span><span class="c">5 <span class="dot">·</span> Drivers</span><span class="d">Driver applications: check the licence and the vehicle, then approve.</span></button></li>
+            <li><button type="button" class="chapter" data-t="46.1"><span class="t">0:46</span><span class="c">6 <span class="dot">·</span> Fares &amp; surge</span><span class="d">Fare cards per ride type, editable without an app release, with a fare calculator.</span></button></li>
+            <li><button type="button" class="chapter" data-t="60.2"><span class="t">1:00</span><span class="c">7 <span class="dot">·</span> Finance</span><span class="d">Gross bookings, driver earnings, commission, GST, the payment mix and driver payouts.</span></button></li>
+            <li><button type="button" class="chapter" data-t="65.0"><span class="t">1:05</span><span class="c">8 <span class="dot">·</span> Settings &amp; audit</span><span class="d">Business rules as settings: dispatch radius, offer timeout, commission, GST, surge cap, no-show wait and more.</span></button></li>
+          </ol>
+          <p class="note">Desktop browser, 1600 × 900. The console joins while the ride is in progress, so the dashboard and the live map show the trip.</p>
+        </div>
+      </div>
+      <ol class="steps wide">
+        <li class="step" id="A01">
+          <button class="shot" type="button" data-full="img/A01.jpg" aria-label="Enlarge Admin sign-in"><img src="img/A01.jpg" alt="Admin sign-in: A separate operations account signs in to the web console." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A01</span>
+            <h3>Admin sign-in</h3>
+            <p>A separate operations account signs in to the web console.</p>
+          </div>
+        </li>
+        <li class="step" id="A02">
+          <button class="shot" type="button" data-full="img/A02.jpg" aria-label="Enlarge Dashboard"><img src="img/A02.jpg" alt="Dashboard: Today's gross bookings and commission, rides right now, drivers online, pickup time, rating, plus 14-day trend, ride-type mix, hourly demand, latest rides, driver applications and SOS." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A02</span>
+            <h3>Dashboard</h3>
+            <p>Today's gross bookings and commission, rides right now, drivers online, pickup time, rating, plus 14-day trend, ride-type mix, hourly demand, latest rides, driver applications and SOS.</p>
+          </div>
+        </li>
+        <li class="step" id="A03">
+          <button class="shot" type="button" data-full="img/A03.jpg" aria-label="Enlarge Live map"><img src="img/A03.jpg" alt="Live map: Refreshed every 3 s. Rahul's car is on Priya's trip; named cars are real drivers, the rest is the simulated fleet that keeps the demo city busy." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A03</span>
+            <h3>Live map</h3>
+            <p>Refreshed every 3 s. Rahul's car is on Priya's trip; named cars are real drivers, the rest is the simulated fleet that keeps the demo city busy.</p>
+          </div>
+        </li>
+        <li class="step" id="A04">
+          <button class="shot" type="button" data-full="img/A04.jpg" aria-label="Enlarge Rides"><img src="img/A04.jpg" alt="Rides: Every ride with filters by status, type and text search." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A04</span>
+            <h3>Rides</h3>
+            <p>Every ride with filters by status, type and text search.</p>
+          </div>
+        </li>
+        <li class="step" id="A05">
+          <button class="shot" type="button" data-full="img/A05.jpg" aria-label="Enlarge Ride detail: planned route vs GPS trace"><img src="img/A05.jpg" alt="Ride detail: planned route vs GPS trace: The planned road route (grey) against the GPS trace to the pickup (green) and with the rider (blue), with planned, GPS and dead-mileage distances, the people and the fare quoted vs final." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A05</span>
+            <h3>Ride detail: planned route vs GPS trace</h3>
+            <p>The planned road route (grey) against the GPS trace to the pickup (green) and with the rider (blue), with planned, GPS and dead-mileage distances, the people and the fare quoted vs final.</p>
+          </div>
+        </li>
+        <li class="step" id="A06">
+          <button class="shot" type="button" data-full="img/A06.jpg" aria-label="Enlarge Ride timeline and dispatch"><img src="img/A06.jpg" alt="Ride timeline and dispatch: Every event with its time (request, offer, accept, arrival, PIN start, fare check, payment, ratings) and each dispatch attempt with distance and answer time." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A06</span>
+            <h3>Ride timeline and dispatch</h3>
+            <p>Every event with its time (request, offer, accept, arrival, PIN start, fare check, payment, ratings) and each dispatch attempt with distance and answer time.</p>
+          </div>
+        </li>
+        <li class="step" id="A07">
+          <button class="shot" type="button" data-full="img/A07.jpg" aria-label="Enlarge Driver application"><img src="img/A07.jpg" alt="Driver application: The applicant's licence and vehicle, ready to approve or reject (with a reason)." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A07</span>
+            <h3>Driver application</h3>
+            <p>The applicant's licence and vehicle, ready to approve or reject (with a reason).</p>
+          </div>
+        </li>
+        <li class="step" id="A08">
+          <button class="shot" type="button" data-full="img/A08.jpg" aria-label="Enlarge Driver approved"><img src="img/A08.jpg" alt="Driver approved: Approved: the driver can go online at once. Suspend, take offline and pay out are on the same page." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A08</span>
+            <h3>Driver approved</h3>
+            <p>Approved: the driver can go online at once. Suspend, take offline and pay out are on the same page.</p>
+          </div>
+        </li>
+        <li class="step" id="A09">
+          <button class="shot" type="button" data-full="img/A09.jpg" aria-label="Enlarge Fares"><img src="img/A09.jpg" alt="Fares: Base fare covering the first 3 km, per km, per minute, minimum fare, free waiting, waiting charge and cancellation fee for each product." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A09</span>
+            <h3>Fares</h3>
+            <p>Base fare covering the first 3 km, per km, per minute, minimum fare, free waiting, waiting charge and cancellation fee for each product.</p>
+          </div>
+        </li>
+        <li class="step" id="A10">
+          <button class="shot" type="button" data-full="img/A10.jpg" aria-label="Enlarge Surge zones"><img src="img/A10.jpg" alt="Surge zones: A manual 1.3x surge set on the Hinjewadi IT Park zone; riders booking there now see the surged upfront fare." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A10</span>
+            <h3>Surge zones</h3>
+            <p>A manual 1.3x surge set on the Hinjewadi IT Park zone; riders booking there now see the surged upfront fare.</p>
+          </div>
+        </li>
+        <li class="step" id="A11">
+          <button class="shot" type="button" data-full="img/A11.jpg" aria-label="Enlarge Finance"><img src="img/A11.jpg" alt="Finance: Totals for the period, gross bookings per day, how riders paid, ride-type mix, driver payout balances and every payment." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A11</span>
+            <h3>Finance</h3>
+            <p>Totals for the period, gross bookings per day, how riders paid, ride-type mix, driver payout balances and every payment.</p>
+          </div>
+        </li>
+        <li class="step" id="A12">
+          <button class="shot" type="button" data-full="img/A12.jpg" aria-label="Enlarge Settings"><img src="img/A12.jpg" alt="Settings: Each rule with its bounds; changes apply at once and are audited. Reset demo data rebuilds the demo." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A12</span>
+            <h3>Settings</h3>
+            <p>Each rule with its bounds; changes apply at once and are audited. Reset demo data rebuilds the demo.</p>
+          </div>
+        </li>
+        <li class="step" id="A13">
+          <button class="shot" type="button" data-full="img/A13.jpg" aria-label="Enlarge Audit log"><img src="img/A13.jpg" alt="Audit log: Who approved the driver and changed the surge zone, and when." loading="lazy" decoding="async"></button>
+          <div class="meta">
+            <span class="code">A13</span>
+            <h3>Audit log</h3>
+            <p>Who approved the driver and changed the surge zone, and when.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+  <section id="run" class="part">
+    <div class="part-head">
+      <p class="eyebrow">For the team</p>
+      <h2>Run it yourself</h2>
+    </div>
+    <div class="facts">
+      <div>
+        <h3>Start</h3>
+        <ul>
+          <li>API: <code>cd ecoride/backend</code>, <code>mvn -DskipTests package</code>, <code>java -jar target/ecoride-api.jar</code> (port 9080, MySQL root/root)</li>
+          <li>Apps: <code>cd ecoride</code>, <code>npm install</code>, then <code>npm run rider</code>, <code>npm run driver</code> (Expo: web or Expo Go) and <code>npm run admin</code></li>
+          <li>Every API start reseeds the demo: 25 drivers, 38 riders, 30 days of rides</li>
+        </ul>
+      </div>
+      <div>
+        <h3>How it was checked</h3>
+        <ul>
+          <li>35 backend tests on MySQL: fares, route tracking, the full ride lifecycle, dispatch cascade, cancellation and no-show fees, GPS jump filtering, role separation, races</li>
+          <li>53 API checks of the whole journey (<code>scripts/smoke.mjs</code>)</li>
+          <li>This recording: three videos and 45 steps from one live run, no console errors</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Market rules built in</h3>
+        <ul>
+          <li>Base fare covers the first 3 km; drivers keep 80% of the fare (MoRTH 2025)</li>
+          <li>Surge capped at 1.5× (Maharashtra)</li>
+          <li>15 s to accept, free cancel window, waiting charge after free wait, 5% GST</li>
+        </ul>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>App</th><th>Sign in</th><th>Password</th><th>Account</th></tr></thead>
+        <tbody>
+          <tr><td>Rider</td><td><code>9876500001</code></td><td><code>Rider@123</code></td><td>Ananya Rao, ₹500 wallet</td></tr>
+          <tr><td>Driver</td><td><code>9876600001</code></td><td><code>Driver@123</code></td><td>Rahul Patil, Mini MH 12 AB 4521</td></tr>
+          <tr><td>Driver</td><td><code>9876600002</code></td><td><code>Driver@123</code></td><td>Sandeep Kulkarni, waiting for approval</td></tr>
+          <tr><td>Admin</td><td><code>admin@ecoride.in</code></td><td><code>Admin@123</code></td><td>Neha Joshi, full access</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>EcoRide demo by SRM ECO TECH. Maps © OpenStreetMap contributors; routes by OSRM; place search by Nominatim. Step codes R, D and A follow the rider, driver and admin parts.</footer>
+</main>
+
+<dialog id="zoom" aria-label="Screenshot"><button type="button" id="zoomClose">Close</button><img id="zoomImg" alt=""></dialog>
+
+<script>
+  (function () {
+    var all = Array.prototype.slice.call(document.querySelectorAll('video'));
+    document.querySelectorAll('.video').forEach(function (box) {
+      var video = box.querySelector('video');
+      var buttons = Array.prototype.slice.call(box.querySelectorAll('.chapter'));
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () {
+          video.currentTime = parseFloat(b.getAttribute('data-t'));
+          var p = video.play();
+          if (p && p.catch) p.catch(function () {});
+        });
+      });
+      video.addEventListener('timeupdate', function () {
+        var t = video.currentTime, current = null;
+        buttons.forEach(function (b) { if (parseFloat(b.getAttribute('data-t')) <= t + 0.2) current = b; });
+        buttons.forEach(function (b) { b.classList.toggle('on', b === current); });
+      });
+      // One video plays at a time.
+      video.addEventListener('play', function () { all.forEach(function (o) { if (o !== video) o.pause(); }); });
+    });
+    var dialog = document.getElementById('zoom'), img = document.getElementById('zoomImg');
+    document.querySelectorAll('.shot').forEach(function (s) {
+      s.addEventListener('click', function () {
+        img.src = s.getAttribute('data-full');
+        img.alt = s.querySelector('img').alt;
+        if (dialog.showModal) dialog.showModal();
+      });
+    });
+    document.getElementById('zoomClose').addEventListener('click', function () { dialog.close(); });
+    dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-canvas text-ink antialiased; font-feature-settings: 'cv11', 'ss01'; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* Leaflet: a calm base map, markers without the default white box, cars that glide. */
+.leaflet-tile-pane { filter: saturate(0.45) brightness(1.04) contrast(0.97); }
+.leaflet-container { background: #EEF0F3; font-family: inherit; }
+.leaflet-control-attribution { font-size: 10px; }
+.eco-marker { background: transparent; border: none; }
+.eco-glide { transition: transform 2.8s linear; }
+.eco-zooming .eco-glide { transition: none !important; }
+.leaflet-popup-content { margin: 10px 12px; font-size: 13px; }

@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "EcoRide",
+    "slug": "ecoride-rider",
+    "version": "0.1.0",
+    "scheme": "ecoride",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.srmecotech.ecoride",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "EcoRide uses your location to set your pickup point and to show your driver where you are."
+      }
+    },
+    "android": {
+      "package": "com.srmecotech.ecoride",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "EcoRide"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "EcoRide uses your location to set your pickup point and to show your driver where you are."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

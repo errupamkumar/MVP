@@ -1,0 +1,101 @@
+server:
+  port: ${SERVER_PORT:9080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: ecoride-api
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ecoride?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&rewriteBatchedStatements=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: ecoride-pool
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: 4
+      connection-timeout: 10000
+      # Every timestamp is stored and compared in UTC (entities use Instant);
+      # the apps format them in the phone's own zone.
+      connection-init-sql: "SET time_zone = '+00:00'"
+      # READ COMMITTED: state changes lock the ride row (SELECT ... FOR UPDATE) and
+      # must then read the latest committed driver and offer rows, not a snapshot
+      # taken before the lock was granted.
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+  sql:
+    init:
+      # always = drop, recreate and reseed on every start (demo default).
+      # Set DB_INIT_MODE=never to keep data between restarts.
+      mode: ${DB_INIT_MODE:always}
+      encoding: UTF-8
+  jpa:
+    open-in-view: false
+    hibernate:
+      # schema.sql owns the schema; Hibernate only checks that the entities match it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+ecoride:
+  city: Pune
+  # Centre of the service area; requests outside SERVICE_AREA_RADIUS_KM (a setting) are refused.
+  service-center-lat: 18.5550
+  service-center-lng: 73.8500
+  security:
+    # 256-bit minimum for HS256. Override JWT_SECRET in every non-local environment.
+    jwt-secret: ${JWT_SECRET:ecoride-local-dev-secret-change-me-0123456789abcdef0123456789abcd}
+    jwt-ttl-hours: ${JWT_TTL_HOURS:72}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:*}
+  routing:
+    # OSRM = road routes from an OSRM server (public demo server by default, no key needed);
+    # STRAIGHT = straight line x road factor (offline, and in tests).
+    provider: ${ROUTING_PROVIDER:OSRM}
+    osrm-url: ${OSRM_URL:https://router.project-osrm.org}
+    timeout-ms: 6000
+  geocoding:
+    # Nominatim (OpenStreetMap) for free-text search and reverse geocoding; curated places always work offline.
+    online: ${GEOCODING_ONLINE:true}
+    nominatim-url: ${NOMINATIM_URL:https://nominatim.openstreetmap.org}
+    user-agent: ${NOMINATIM_USER_AGENT:EcoRideDemo/0.1 (SRM ECO TECH demo)}
+    timeout-ms: 5000
+  dispatch:
+    # The dispatcher sweep: expires unanswered offers and offers searching rides to the next driver.
+    enabled: ${DISPATCH_ENABLED:true}
+    interval-ms: ${DISPATCH_INTERVAL_MS:1000}
+  demo:
+    # Simulated drivers and riders that keep the map and dashboard alive (see the DEMO_* settings).
+    simulation-enabled: ${DEMO_SIMULATION:true}
+    simulation-interval-ms: 2000
+    reset-enabled: ${DEMO_RESET_ENABLED:true}
+    history-days: 30
+    # Demo recordings only: shift the server clock (e.g. PT9H) so timestamps read as daytime.
+    clock-offset: ${DEMO_CLOCK_OFFSET:PT0S}
+
+logging:
+  level:
+    com.srmecotech.ecoride: INFO

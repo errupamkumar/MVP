@@ -1,0 +1,24 @@
+{
+  "name": "@ecoride/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React Native UI kit, live map, location, session and auth shared by the EcoRide rider and driver apps",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@ecoride/core": "*"
+  },
+  "peerDependencies": {
+    "@expo/vector-icons": "*",
+    "@tanstack/react-query": "*",
+    "expo-constants": "*",
+    "expo-location": "*",
+    "expo-secure-store": "*",
+    "leaflet": "*",
+    "react": "*",
+    "react-leaflet": "*",
+    "react-native": "*",
+    "react-native-maps": "*",
+    "react-native-safe-area-context": "*"
+  }
+}

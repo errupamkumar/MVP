@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "EcoRide Driver",
+    "slug": "ecoride-driver",
+    "version": "0.1.0",
+    "scheme": "ecoridedriver",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.srmecotech.ecoride.driver",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "EcoRide Driver shares your position while you are online, so riders see you arrive and trips are measured."
+      }
+    },
+    "android": {
+      "package": "com.srmecotech.ecoride.driver",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "EcoRide Driver"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "EcoRide Driver shares your position while you are online, so riders see you arrive and trips are measured."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

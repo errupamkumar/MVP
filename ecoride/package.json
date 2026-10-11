@@ -1,0 +1,25 @@
+{
+  "name": "ecoride",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EcoRide: on-demand ride hailing demo (rider app, driver app, admin console)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "rider": "npm --workspace @ecoride/rider-app run start",
+    "driver": "npm --workspace @ecoride/driver-app run start",
+    "rider:web": "npm --workspace @ecoride/rider-app run web",
+    "driver:web": "npm --workspace @ecoride/driver-app run web",
+    "admin": "npm --workspace @ecoride/admin-web run dev",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build:web": "npm run export:web --workspace @ecoride/rider-app && npm run export:web --workspace @ecoride/driver-app && npm run build --workspace @ecoride/admin-web",
+    "serve:web": "node scripts/serve-web.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  }
+}

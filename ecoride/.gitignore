@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.expo/
+*.log
+.env
+backend/target/
+apps/*/dist/
+apps/admin/dist/

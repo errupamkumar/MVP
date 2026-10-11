@@ -1,0 +1,20 @@
+# Integration tests: a separate database, no network map providers, dispatch and simulation
+# driven by the tests themselves, a short history.
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecoride_test?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&rewriteBatchedStatements=true
+  main:
+    allow-bean-definition-overriding: true
+ecoride:
+  routing:
+    provider: STRAIGHT
+  geocoding:
+    online: false
+  dispatch:
+    enabled: false
+  demo:
+    simulation-enabled: false
+    history-days: 2
+logging:
+  level:
+    com.srmecotech.ecoride: WARN
